@@ -1,25 +1,4 @@
-#region License
-//
-// Copyright 2002-2016 Drew Noakes
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// More information about this project is available at:
-//
-//    https://github.com/drewnoakes/metadata-extractor-dotnet
-//    https://drewnoakes.com/code/exif/
-//
-#endregion
+// Copyright (c) Drew Noakes and contributors. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -112,9 +91,13 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
         public const int TagFaceDetectFrameSize = 0x1203;
         public const int TagFaceDetectFrameCrop = 0x1207;
         public const int TagCameraTemperature = 0x1306;
-        // 0x1905 - focal length (PH, E-M1)
 
-        private static readonly Dictionary<int, string> _tagNameMap = new Dictionary<int, string>
+        public const int TagKeystoneCompensation = 0x1900;
+        public const int TagKeystoneDirection = 0x1901;
+        // 0x1905 - focal length (PH, E-M1)
+        public const int TagKeystoneValue = 0x1906;
+
+        private static readonly Dictionary<int, string> _tagNameMap = new()
         {
             { TagImageProcessingVersion, "Image Processing Version" },
             { TagWbRbLevels, "WB RB Levels" },
@@ -179,19 +162,17 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
             { TagMaxFaces, "Max Faces" },
             { TagFaceDetectFrameSize, "Face Detect Frame Size" },
             { TagFaceDetectFrameCrop, "Face Detect Frame Crop" },
-            { TagCameraTemperature , "Camera Temperature" }
+            { TagCameraTemperature , "Camera Temperature" },
+            { TagKeystoneCompensation, "Keystone Compensation" },
+            { TagKeystoneDirection, "Keystone Direction" },
+            { TagKeystoneValue, "Keystone Value" }
         };
 
-        public OlympusImageProcessingMakernoteDirectory()
+        public OlympusImageProcessingMakernoteDirectory() : base(_tagNameMap)
         {
             SetDescriptor(new OlympusImageProcessingMakernoteDescriptor(this));
         }
 
         public override string Name => "Olympus Image Processing";
-
-        protected override bool TryGetTagName(int tagType, out string tagName)
-        {
-            return _tagNameMap.TryGetValue(tagType, out tagName);
-        }
     }
 }

@@ -1,29 +1,8 @@
-#region License
-//
-// Copyright 2002-2016 Drew Noakes
-// Ported from Java to C# by Yakov Danilov for Imazen LLC in 2014
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// More information about this project is available at:
-//
-//    https://github.com/drewnoakes/metadata-extractor-dotnet
-//    https://drewnoakes.com/code/exif/
-//
-#endregion
+// Copyright (c) Drew Noakes and contributors. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Text;
 using MetadataExtractor.Formats.Exif;
 using Xunit;
@@ -72,8 +51,7 @@ namespace MetadataExtractor.Tests
             Assert.Equal(value, _directory.GetDouble(tagType), precision: 5);
             Assert.Equal((long)value, (object)_directory.GetInt64(tagType));
             Assert.Equal(value.ToString(), _directory.GetString(tagType));
-            Rational rational;
-            Assert.True(_directory.TryGetRational(tagType, out rational));
+            Assert.True(_directory.TryGetRational(tagType, out Rational rational));
             Assert.Equal(new Rational(value, 1), rational);
             Assert.Equal(new[] { value }, _directory.GetInt32Array(tagType));
             Assert.Equal(new[] { unchecked((byte)value) }, _directory.GetByteArray(tagType));
@@ -87,7 +65,7 @@ namespace MetadataExtractor.Tests
             _directory.Set(tagType, inputValues);
             var outputValues = _directory.GetInt32Array(tagType);
             Assert.NotNull(outputValues);
-            Assert.Equal(inputValues.Length, outputValues.Length);
+            Assert.Equal(inputValues.Length, outputValues!.Length);
             for (var i = 0; i < inputValues.Length; i++)
             {
                 var inputValue = inputValues[i];
@@ -108,30 +86,39 @@ namespace MetadataExtractor.Tests
             Assert.Equal(outputString.ToString(), _directory.GetString(tagType));
         }
 
-        [Fact]
-        public void SetStringAndGetDate()
+        [Theory]
+#pragma warning disable format
+        [InlineData("2002:01:30 23:59:59",           2002, 1, 30, 23, 59, 59,  0, DateTimeKind.Unspecified)]
+        [InlineData("2002:01:30 23:59",              2002, 1, 30, 23, 59,  0,  0, DateTimeKind.Unspecified)]
+        [InlineData("2002-01-30 23:59:59",           2002, 1, 30, 23, 59, 59,  0, DateTimeKind.Unspecified)]
+        [InlineData("2002-01-30 23:59",              2002, 1, 30, 23, 59,  0,  0, DateTimeKind.Unspecified)]
+        [InlineData("2002-01-30T23:59:59.099-08:00", 2002, 1, 31,  7, 59, 59, 99, DateTimeKind.Utc)]
+        [InlineData("2002-01-30T23:59:59.9",         2002, 1, 30, 23, 59, 59,900, DateTimeKind.Unspecified)]
+        [InlineData("2002-01-30T23:59:59.09",        2002, 1, 30, 23, 59, 59, 90, DateTimeKind.Unspecified)]
+        [InlineData("2002-01-30T23:59:59.099",       2002, 1, 30, 23, 59, 59, 99, DateTimeKind.Unspecified)]
+        [InlineData("2002-01-30T23:59:59-08:00",     2002, 1, 31,  7, 59, 59,  0, DateTimeKind.Utc)]
+        [InlineData("2002-01-30T23:59:59",           2002, 1, 30, 23, 59, 59,  0, DateTimeKind.Unspecified)]
+        [InlineData("2002-01-30T23:59:59+0100",      2002, 1, 30, 22, 59, 59,  0, DateTimeKind.Utc)]
+        [InlineData("2002-01-30T23:59-08:00",        2002, 1, 31,  7, 59,  0,  0, DateTimeKind.Utc)]
+        [InlineData("2002-01-30T23:59",              2002, 1, 30, 23, 59,  0,  0, DateTimeKind.Unspecified)]
+        [InlineData("2002-01-30",                    2002, 1, 30,  0,  0,  0,  0, DateTimeKind.Unspecified)]
+        [InlineData("2002-01",                       2002, 1,  1,  0,  0,  0,  0, DateTimeKind.Unspecified)]
+        [InlineData("2002",                          2002, 1,  1,  0,  0,  0,  0, DateTimeKind.Unspecified)]
+        [InlineData("2002-01-30T23:59:59.099-08:00", 2002, 1, 31,  7, 59, 59, 99, DateTimeKind.Utc, "ar")]
+#pragma warning restore format
+        public void SetStringAndGetDate(string str, int year, int month, int day, int hour, int minute, int second, int milli, DateTimeKind kind, string? culture = null)
         {
-            Action<string, DateTime> test = (str, expected) =>
-            {
-                _directory.Set(1, str);
-                Assert.Equal(expected, _directory.GetDateTime(1));
-            };
+            CultureInfo.CurrentCulture = string.IsNullOrWhiteSpace(culture) ? CultureInfo.CurrentCulture : CultureInfo.GetCultureInfo(culture);
+
+            _directory.Set(1, str);
+
+            var expected = new DateTime(year, month, day, hour, minute, second, milli, kind);
+            var actual = _directory.GetDateTime(1);
+
+            Assert.Equal(expected.Kind, actual.Kind);
+            Assert.Equal(expected, actual);
 
             // TODO revisit these commented cases and introduce GetDateTimeOffset impl/test
-
-            test("2002:01:30 23:59:59",           new DateTime(2002, 1, 30, 23, 59, 59,     DateTimeKind.Unspecified));
-            test("2002:01:30 23:59",              new DateTime(2002, 1, 30, 23, 59,  0,     DateTimeKind.Unspecified));
-            test("2002-01-30 23:59:59",           new DateTime(2002, 1, 30, 23, 59, 59,     DateTimeKind.Unspecified));
-            test("2002-01-30 23:59",              new DateTime(2002, 1, 30, 23, 59,  0,     DateTimeKind.Unspecified));
-//          test("2002-01-30T23:59:59.099-08:00", new DateTime(2002, 1, 30, 23, 59, 59, 99, DateTimeKind.Unspecified));
-            test("2002-01-30T23:59:59.099",       new DateTime(2002, 1, 30, 23, 59, 59, 99, DateTimeKind.Unspecified));
-//          test("2002-01-30T23:59:59-08:00",     new DateTime(2002, 1, 30, 23, 59, 59,     DateTimeKind.Unspecified));
-            test("2002-01-30T23:59:59",           new DateTime(2002, 1, 30, 23, 59, 59,     DateTimeKind.Unspecified));
-//          test("2002-01-30T23:59-08:00",        new DateTime(2002, 1, 30, 23, 59,  0,     DateTimeKind.Unspecified));
-            test("2002-01-30T23:59",              new DateTime(2002, 1, 30, 23, 59,  0,     DateTimeKind.Unspecified));
-            test("2002-01-30",                    new DateTime(2002, 1, 30,  0,  0,  0,     DateTimeKind.Unspecified));
-            test("2002-01",                       new DateTime(2002, 1,  1,  0,  0,  0,     DateTimeKind.Unspecified));
-            test("2002",                          new DateTime(2002, 1,  1,  0,  0,  0,     DateTimeKind.Unspecified));
         }
 
         [Fact]
@@ -141,7 +128,7 @@ namespace MetadataExtractor.Tests
             _directory.Set(1, ints);
             var bytes = _directory.GetByteArray(1);
             Assert.NotNull(bytes);
-            Assert.Equal(ints.Length, bytes.Length);
+            Assert.Equal(ints.Length, bytes!.Length);
             Assert.Equal(1, bytes[0]);
         }
 
@@ -173,24 +160,17 @@ namespace MetadataExtractor.Tests
             Assert.Null(_directory.GetRationalArray(ExifDirectoryBase.TagAperture));
             Assert.Null(_directory.GetStringArray(ExifDirectoryBase.TagAperture));
 
-            bool b;
-            Assert.False(_directory.TryGetBoolean(ExifDirectoryBase.TagAperture, out b));
-            DateTime dt;
-            Assert.False(_directory.TryGetDateTime(ExifDirectoryBase.TagAperture, out dt));
-            double d;
-            Assert.False(_directory.TryGetDouble(ExifDirectoryBase.TagAperture, out d));
-            int i;
-            Assert.False(_directory.TryGetInt32(ExifDirectoryBase.TagAperture, out i));
-            long l;
-            Assert.False(_directory.TryGetInt64(ExifDirectoryBase.TagAperture, out l));
-            Rational r;
-            Assert.False(_directory.TryGetRational(ExifDirectoryBase.TagAperture, out r));
-            float f;
-            Assert.False(_directory.TryGetSingle(ExifDirectoryBase.TagAperture, out f));
+            Assert.False(_directory.TryGetBoolean(ExifDirectoryBase.TagAperture, out _));
+            Assert.False(_directory.TryGetDateTime(ExifDirectoryBase.TagAperture, out _));
+            Assert.False(_directory.TryGetDouble(ExifDirectoryBase.TagAperture, out _));
+            Assert.False(_directory.TryGetInt32(ExifDirectoryBase.TagAperture, out _));
+            Assert.False(_directory.TryGetInt64(ExifDirectoryBase.TagAperture, out _));
+            Assert.False(_directory.TryGetRational(ExifDirectoryBase.TagAperture, out _));
+            Assert.False(_directory.TryGetSingle(ExifDirectoryBase.TagAperture, out _));
         }
 
         [Fact]
-        public void ToString()
+        public void ToStringMethod()
         {
             var directory = new ExifIfd0Directory();
             Assert.Equal("Exif IFD0 Directory (0 tags)", directory.ToString());

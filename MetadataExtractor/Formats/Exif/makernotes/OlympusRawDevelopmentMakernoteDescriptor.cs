@@ -1,28 +1,6 @@
-#region License
-//
-// Copyright 2002-2016 Drew Noakes
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// More information about this project is available at:
-//
-//    https://github.com/drewnoakes/metadata-extractor-dotnet
-//    https://drewnoakes.com/code/exif/
-//
-#endregion
+// Copyright (c) Drew Noakes and contributors. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using System.Text;
-using JetBrains.Annotations;
 using System.Diagnostics.CodeAnalysis;
 
 namespace MetadataExtractor.Formats.Exif.Makernotes
@@ -40,57 +18,45 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
     public sealed class OlympusRawDevelopmentMakernoteDescriptor : TagDescriptor<OlympusRawDevelopmentMakernoteDirectory>
     {
-        public OlympusRawDevelopmentMakernoteDescriptor([NotNull] OlympusRawDevelopmentMakernoteDirectory directory)
+        public OlympusRawDevelopmentMakernoteDescriptor(OlympusRawDevelopmentMakernoteDirectory directory)
             : base(directory)
         {
         }
 
-        public override string GetDescription(int tagType)
+        public override string? GetDescription(int tagType)
         {
-            switch (tagType)
+            return tagType switch
             {
-                case OlympusRawDevelopmentMakernoteDirectory.TagRawDevVersion:
-                    return GetRawDevVersionDescription();
-                case OlympusRawDevelopmentMakernoteDirectory.TagRawDevColorSpace:
-                    return GetRawDevColorSpaceDescription();
-                case OlympusRawDevelopmentMakernoteDirectory.TagRawDevEngine:
-                    return GetRawDevEngineDescription();
-                case OlympusRawDevelopmentMakernoteDirectory.TagRawDevNoiseReduction:
-                    return GetRawDevNoiseReductionDescription();
-                case OlympusRawDevelopmentMakernoteDirectory.TagRawDevEditStatus:
-                    return GetRawDevEditStatusDescription();
-                case OlympusRawDevelopmentMakernoteDirectory.TagRawDevSettings:
-                    return GetRawDevSettingsDescription();
-                default:
-                    return base.GetDescription(tagType);
-            }
+                OlympusRawDevelopmentMakernoteDirectory.TagRawDevVersion => GetRawDevVersionDescription(),
+                OlympusRawDevelopmentMakernoteDirectory.TagRawDevColorSpace => GetRawDevColorSpaceDescription(),
+                OlympusRawDevelopmentMakernoteDirectory.TagRawDevEngine => GetRawDevEngineDescription(),
+                OlympusRawDevelopmentMakernoteDirectory.TagRawDevNoiseReduction => GetRawDevNoiseReductionDescription(),
+                OlympusRawDevelopmentMakernoteDirectory.TagRawDevEditStatus => GetRawDevEditStatusDescription(),
+                OlympusRawDevelopmentMakernoteDirectory.TagRawDevSettings => GetRawDevSettingsDescription(),
+                _ => base.GetDescription(tagType),
+            };
         }
 
-        [CanBeNull]
-        public string GetRawDevVersionDescription()
+        public string? GetRawDevVersionDescription()
         {
             return GetVersionBytesDescription(OlympusRawDevelopmentMakernoteDirectory.TagRawDevVersion, 4);
         }
 
-        [CanBeNull]
-        public string GetRawDevColorSpaceDescription()
+        public string? GetRawDevColorSpaceDescription()
         {
             return GetIndexedDescription(OlympusRawDevelopmentMakernoteDirectory.TagRawDevColorSpace,
                 "sRGB", "Adobe RGB", "Pro Photo RGB");
         }
 
-        [CanBeNull]
-        public string GetRawDevEngineDescription()
+        public string? GetRawDevEngineDescription()
         {
             return GetIndexedDescription(OlympusRawDevelopmentMakernoteDirectory.TagRawDevEngine,
                 "High Speed", "High Function", "Advanced High Speed", "Advanced High Function");
         }
 
-        [CanBeNull]
-        public string GetRawDevNoiseReductionDescription()
+        public string? GetRawDevNoiseReductionDescription()
         {
-            int value;
-            if (!Directory.TryGetInt32(OlympusRawDevelopmentMakernoteDirectory.TagRawDevNoiseReduction, out value))
+            if (!Directory.TryGetInt32(OlympusRawDevelopmentMakernoteDirectory.TagRawDevNoiseReduction, out int value))
                 return null;
 
             if (value == 0)
@@ -99,18 +65,18 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
             var sb = new StringBuilder();
             var v = (ushort)value;
 
-            if ((v        & 1) != 0) sb.Append("Noise Reduction, ");
+#pragma warning disable format
+            if ((v & 1) != 0) sb.Append("Noise Reduction, ");
             if (((v >> 1) & 1) != 0) sb.Append("Noise Filter, ");
             if (((v >> 2) & 1) != 0) sb.Append("Noise Filter (ISO Boost), ");
+#pragma warning restore format
 
             return sb.ToString(0, sb.Length - 2);
         }
 
-        [CanBeNull]
-        public string GetRawDevEditStatusDescription()
+        public string? GetRawDevEditStatusDescription()
         {
-            int value;
-            if (!Directory.TryGetInt32(OlympusRawDevelopmentMakernoteDirectory.TagRawDevEditStatus, out value))
+            if (!Directory.TryGetInt32(OlympusRawDevelopmentMakernoteDirectory.TagRawDevEditStatus, out int value))
                 return null;
 
             switch (value)
@@ -127,11 +93,9 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
             }
         }
 
-        [CanBeNull]
-        public string GetRawDevSettingsDescription()
+        public string? GetRawDevSettingsDescription()
         {
-            int value;
-            if (!Directory.TryGetInt32(OlympusRawDevelopmentMakernoteDirectory.TagRawDevSettings, out value))
+            if (!Directory.TryGetInt32(OlympusRawDevelopmentMakernoteDirectory.TagRawDevSettings, out int value))
                 return null;
 
             if (value == 0)
@@ -140,7 +104,8 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
             var sb = new StringBuilder();
             var v = (ushort)value;
 
-            if ((v        & 1) != 0) sb.Append("WB Color Temp, ");
+#pragma warning disable format
+            if ((v & 1) != 0) sb.Append("WB Color Temp, ");
             if (((v >> 1) & 1) != 0) sb.Append("WB Gray Point, ");
             if (((v >> 2) & 1) != 0) sb.Append("Saturation, ");
             if (((v >> 3) & 1) != 0) sb.Append("Contrast, ");
@@ -148,6 +113,7 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
             if (((v >> 5) & 1) != 0) sb.Append("Color Space, ");
             if (((v >> 6) & 1) != 0) sb.Append("High Function, ");
             if (((v >> 7) & 1) != 0) sb.Append("Noise Reduction, ");
+#pragma warning restore format
 
             return sb.ToString(0, sb.Length - 2);
         }

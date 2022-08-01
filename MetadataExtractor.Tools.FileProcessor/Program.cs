@@ -1,34 +1,16 @@
-﻿#region License
-//
-// Copyright 2002-2016 Drew Noakes
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// More information about this project is available at:
-//
-//    https://github.com/drewnoakes/metadata-extractor-dotnet
-//    https://drewnoakes.com/code/exif/
-//
-#endregion
+﻿// Copyright (c) Drew Noakes and contributors. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using JetBrains.Annotations;
+using System.Text;
 using MetadataExtractor.Formats.Exif;
+using MetadataExtractor.Formats.FileSystem;
+using MetadataExtractor.Formats.Xmp;
 
 /*
  * metadata-extractor foo.jpg
@@ -38,24 +20,31 @@ using MetadataExtractor.Formats.Exif;
 
 namespace MetadataExtractor.Tools.FileProcessor
 {
-    // TODO port MarkdownTableOutputHandler
     // TODO port UnknownTagHandler
 
     internal static class Program
     {
         private static int Main(string[] args)
         {
+#if NETFRAMEWORK
+            System.Threading.Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+            System.Threading.Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
+#else
+            CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+            CultureInfo.CurrentUICulture = CultureInfo.InvariantCulture;
+#endif
+#if !NET35
+            CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+            CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+#endif
             return ProcessRecursively(args);
 //            return ProcessFileList(args);
         }
 
         /// <summary>An application entry point.</summary>
         /// <remarks>
-        /// An application entry point.  Takes the name of one or more files as arguments and prints the contents of all
-        /// metadata directories to <c>System.out</c>.
-        /// <para />
-        /// If <c>--thumb</c> is passed, then any thumbnail data will be written to a file with name of the
-        /// input file having <c>.thumb.jpg</c> appended.
+        /// Takes the name of one or more files as arguments and prints the contents of all
+        /// metadata directories to standard out.
         /// <para />
         /// If <c>--markdown</c> is passed, then output will be in markdown format.
         /// <para />
@@ -63,20 +52,19 @@ namespace MetadataExtractor.Tools.FileProcessor
         /// </remarks>
         /// <param name="argArray">the command line arguments</param>
         /// <exception cref="MetadataException"/>
-        /// <exception cref="System.IO.IOException"/>
-        private static int ProcessFileList([NotNull] string[] argArray)
+        /// <exception cref="IOException"/>
+        private static int ProcessFileList(string[] argArray)
         {
             var args = argArray.ToList();
 
-            var thumbRequested = args.Remove("--thumb");
             var markdownFormat = args.Remove("--markdown");
             var showHex = args.Remove("--hex");
 
-            if (args.Count < 1)
+            if (args.Count == 0)
             {
-                Console.Out.WriteLine("MetadataExtractor {0}", Assembly.GetExecutingAssembly().GetName().Version);
+                Console.Out.WriteLine("MetadataExtractor {0}", Assembly.GetEntryAssembly()?.GetName().Version);
                 Console.Out.WriteLine();
-                Console.Out.WriteLine("Usage: MetadataExtractor <filename> [<filename> ...] [--thumb] [--markdown] [--hex]");
+                Console.Out.WriteLine($"Usage: {Path.GetFileName(Process.GetCurrentProcess().MainModule?.FileName)} <filename> [<filename> ...] [--markdown] [--hex]");
 
                 if (Debugger.IsAttached)
                     Console.ReadLine();
@@ -113,10 +101,10 @@ namespace MetadataExtractor.Tools.FileProcessor
                 if (markdownFormat)
                 {
                     var fileName = Path.GetFileName(filePath);
-                    var urlName = UrlEncode(filePath);
+                    var urlName = Uri.EscapeDataString(filePath).Replace("%20", "+");
                     var exifIfd0Directory = directories.OfType<ExifIfd0Directory>().FirstOrDefault();
-                    var make = exifIfd0Directory == null ? string.Empty : exifIfd0Directory.GetString(ExifDirectoryBase.TagMake);
-                    var model = exifIfd0Directory == null ? string.Empty : exifIfd0Directory.GetString(ExifDirectoryBase.TagModel);
+                    var make = exifIfd0Directory is null ? string.Empty : exifIfd0Directory.GetString(ExifDirectoryBase.TagMake);
+                    var model = exifIfd0Directory is null ? string.Empty : exifIfd0Directory.GetString(ExifDirectoryBase.TagModel);
                     Console.Out.WriteLine();
                     Console.Out.WriteLine("---");
                     Console.Out.WriteLine();
@@ -131,19 +119,19 @@ namespace MetadataExtractor.Tools.FileProcessor
                     Console.Out.WriteLine(":--------:|-------:|----------|----------------");
                 }
 
-                // iterate over the metadata and print to System.out
+                // iterate over the metadata and print to standard out
                 foreach (var directory in directories)
                 {
                     foreach (var tag in directory.Tags)
                     {
-                        string description;
+                        string? description;
                         try
                         {
                             description = tag.Description;
 
                             // truncate the description if it's too long
-                            if (description != null && description.Length > 1024)
-                                description = description.Substring(0, 1024 - 0) + "...";
+                            if (description is { Length: > 1024 })
+                                description = description[..1024] + "...";
                         }
                         catch (Exception e)
                         {
@@ -162,23 +150,24 @@ namespace MetadataExtractor.Tools.FileProcessor
                             description);
                     }
 
+                    if (directory is XmpDirectory { XmpMeta: { } } xmpDirectory)
+                    {
+                        foreach (var property in xmpDirectory.XmpMeta.Properties)
+                        {
+                            Console.Out.WriteLine(
+                                markdownFormat
+                                    ? "{0}||{1} {2}|{3}"
+                                    : "[{0}] {1} {2} = {3}",
+                                directory.Name,
+                                property.Namespace,
+                                property.Path,
+                                property.Value);
+                        }
+                    }
+
                     // print out any errors
                     foreach (var error in directory.Errors)
                         Console.Error.WriteLine("ERROR: {0}", error);
-                }
-
-                if (thumbRequested && argArray.Length > 1)
-                {
-                    var thumbnailDirectory = directories.OfType<ExifThumbnailDirectory>().FirstOrDefault();
-                    if (thumbnailDirectory != null && thumbnailDirectory.HasThumbnailData)
-                    {
-                        Console.Out.WriteLine("Writing thumbnail...");
-                        thumbnailDirectory.WriteThumbnail(argArray[0].Trim() + ".thumb.jpg");
-                    }
-                    else
-                    {
-                        Console.Out.WriteLine("No thumbnail data exists in this image");
-                    }
                 }
             }
 
@@ -188,19 +177,11 @@ namespace MetadataExtractor.Tools.FileProcessor
             return 0;
         }
 
-        [NotNull]
-        internal static string UrlEncode([NotNull] string name)
-        {
-            // Sufficient for now, it seems
-            // TODO review http://stackoverflow.com/questions/3840762/how-do-you-urlencode-without-using-system-web
-            return name.Replace(" ", "%20");
-        }
-
         private static int ProcessRecursively(string[] args)
         {
             var directories = new List<string>();
 
-            var fileHandler = (IFileHandler)null;
+            var fileHandler = (IFileHandler?)null;
             var log = Console.Out;
 
             for (var i = 0; i < args.Length; i++)
@@ -230,7 +211,8 @@ namespace MetadataExtractor.Tools.FileProcessor
                             Console.ReadLine();
                         return 1;
                     }
-                    log = new StreamWriter(args[++i], append: false);
+                    var fileStream = File.Open(args[++i], FileMode.Create);
+                    log = new StreamWriter(fileStream, new UTF8Encoding(false));
                 }
                 else
                 {
@@ -248,7 +230,7 @@ namespace MetadataExtractor.Tools.FileProcessor
                 return 1;
             }
 
-            if (fileHandler == null)
+            if (fileHandler is null)
                 fileHandler = new BasicFileHandler();
 
             var stopwatch = Stopwatch.StartNew();
@@ -274,10 +256,10 @@ namespace MetadataExtractor.Tools.FileProcessor
             Console.Out.WriteLine("Usage:");
             Console.Out.WriteLine();
             Console.Out.WriteLine("  {0}.exe [--text|--markdown|--unknown] [--log-file <file-name>]",
-                Assembly.GetExecutingAssembly().GetName().Name);
+                Assembly.GetEntryAssembly()?.GetName().Name);
         }
 
-        private static void ProcessDirectory([NotNull] string path, [NotNull] IFileHandler handler, [NotNull] string relativePath, [NotNull] TextWriter log)
+        private static void ProcessDirectory(string path, IFileHandler handler, string relativePath, TextWriter log)
         {
             var entries = System.IO.Directory.GetFileSystemEntries(path);
 
@@ -297,14 +279,20 @@ namespace MetadataExtractor.Tools.FileProcessor
                     handler.OnBeforeExtraction(file, relativePath, log);
 
                     // Read metadata
+                    using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read);
                     try
                     {
-                        var directories = ImageMetadataReader.ReadMetadata(file);
-                        handler.OnExtractionSuccess(file, directories, relativePath, log);
+                        var directories = ImageMetadataReader.ReadMetadata(stream).ToList();
+
+                        // ImageMetadataReader.ReadMetadata(Stream) doesn't add a FileMetadataReader directory.
+                        // Add it manually
+                        directories.Add(new FileMetadataReader().Read(file));
+
+                        handler.OnExtractionSuccess(file, directories, relativePath, log, stream.Position);
                     }
                     catch (Exception e)
                     {
-                        handler.OnExtractionError(file, e, log);
+                        handler.OnExtractionError(file, e, log, stream.Position);
                     }
                 }
             }

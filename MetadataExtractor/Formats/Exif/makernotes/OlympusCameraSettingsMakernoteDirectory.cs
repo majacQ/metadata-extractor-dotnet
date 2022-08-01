@@ -1,25 +1,4 @@
-#region License
-//
-// Copyright 2002-2016 Drew Noakes
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// More information about this project is available at:
-//
-//    https://github.com/drewnoakes/metadata-extractor-dotnet
-//    https://drewnoakes.com/code/exif/
-//
-#endregion
+// Copyright (c) Drew Noakes and contributors. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -89,6 +68,7 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
         public const int TagPictureModeEffect = 0x52d;
         public const int TagToneLevel = 0x52e;
         public const int TagArtFilterEffect = 0x52f;
+        public const int TagColorCreatorEffect = 0x532;
 
         public const int TagDriveMode = 0x600;
         public const int TagPanoramaMode = 0x601;
@@ -104,7 +84,7 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
         public const int TagPitchAngle = 0x904;
         public const int TagDateTimeUtc = 0x908;
 
-        private static readonly Dictionary<int, string> _tagNameMap = new Dictionary<int, string>
+        private static readonly Dictionary<int, string> _tagNameMap = new()
         {
             { TagCameraSettingsVersion, "Camera Settings Version" },
             { TagPreviewImageValid, "Preview Image Valid" },
@@ -160,6 +140,7 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
             { TagPictureModeEffect, "Picture Mode Effect" },
             { TagToneLevel, "Tone Level" },
             { TagArtFilterEffect, "Art Filter Effect" },
+            { TagColorCreatorEffect, "Color Creator Effect" },
 
             { TagDriveMode, "Drive Mode" },
             { TagPanoramaMode, "Panorama Mode" },
@@ -176,16 +157,11 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
             { TagDateTimeUtc, "Date Time UTC" }
         };
 
-        public OlympusCameraSettingsMakernoteDirectory()
+        public OlympusCameraSettingsMakernoteDirectory() : base(_tagNameMap)
         {
             SetDescriptor(new OlympusCameraSettingsMakernoteDescriptor(this));
         }
 
         public override string Name => "Olympus Camera Settings";
-
-        protected override bool TryGetTagName(int tagType, out string tagName)
-        {
-            return _tagNameMap.TryGetValue(tagType, out tagName);
-        }
     }
 }

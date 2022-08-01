@@ -1,32 +1,8 @@
-#region License
-//
-// Copyright 2002-2016 Drew Noakes
-// Ported from Java to C# by Yakov Danilov for Imazen LLC in 2014
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// More information about this project is available at:
-//
-//    https://github.com/drewnoakes/metadata-extractor-dotnet
-//    https://drewnoakes.com/code/exif/
-//
-#endregion
+// Copyright (c) Drew Noakes and contributors. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
-using JetBrains.Annotations;
 using MetadataExtractor.Formats.Jpeg;
 using MetadataExtractor.IO;
 
@@ -41,34 +17,21 @@ namespace MetadataExtractor.Formats.Jfxx
     /// </list>
     /// </remarks>
     /// <author>Drew Noakes</author>
-    public sealed class JfxxReader : IJpegSegmentMetadataReader
+    public sealed class JfxxReader : JpegSegmentWithPreambleMetadataReader
     {
-        private const string Preamble = "JFXX";
+        public const string JpegSegmentPreamble = "JFXX";
 
-        ICollection<JpegSegmentType> IJpegSegmentMetadataReader.SegmentTypes => new [] { JpegSegmentType.App0 };
+        protected override byte[] PreambleBytes { get; } = Encoding.ASCII.GetBytes(JpegSegmentPreamble);
 
-        [NotNull]
-        public
-#if NET35 || PORTABLE
-            IList<Directory>
-#else
-            IReadOnlyList<Directory>
-#endif
-            ReadJpegSegments(IEnumerable<JpegSegment> segments)
+        public override ICollection<JpegSegmentType> SegmentTypes { get; } = new[] { JpegSegmentType.App0 };
+
+        protected override IEnumerable<Directory> Extract(byte[] segmentBytes, int preambleLength)
         {
-            // Skip segments not starting with the required header
-            return segments
-                .Where(segment => segment.Bytes.Length >= Preamble.Length && Preamble == Encoding.UTF8.GetString(segment.Bytes, 0, Preamble.Length))
-                .Select(segment => Extract(new ByteArrayReader(segment.Bytes)))
-#if NET35 || PORTABLE
-                .Cast<Directory>()
-#endif
-                .ToList();
+            yield return Extract(new ByteArrayReader(segmentBytes));
         }
 
         /// <summary>Reads JFXX values and returns them in an <see cref="JfxxDirectory"/>.</summary>
-        [NotNull]
-        public JfxxDirectory Extract([NotNull] IndexedReader reader)
+        public JfxxDirectory Extract(IndexedReader reader)
         {
             var directory = new JfxxDirectory();
 

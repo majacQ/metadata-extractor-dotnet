@@ -1,32 +1,9 @@
-﻿#region License
-//
-// Copyright 2002-2016 Drew Noakes
-// Ported from Java to C# by Yakov Danilov for Imazen LLC in 2014
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// More information about this project is available at:
-//
-//    https://github.com/drewnoakes/metadata-extractor-dotnet
-//    https://drewnoakes.com/code/exif/
-//
-#endregion
+﻿// Copyright (c) Drew Noakes and contributors. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
-using JetBrains.Annotations;
 using MetadataExtractor.IO;
 
 namespace MetadataExtractor.Formats.Icc
@@ -36,12 +13,12 @@ namespace MetadataExtractor.Formats.Icc
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
     public class IccDescriptor : TagDescriptor<IccDirectory>
     {
-        public IccDescriptor([NotNull] IccDirectory directory)
+        public IccDescriptor(IccDirectory directory)
             : base(directory)
         {
         }
 
-        public override string GetDescription(int tagType)
+        public override string? GetDescription(int tagType)
         {
             switch (tagType)
             {
@@ -57,7 +34,7 @@ namespace MetadataExtractor.Formats.Icc
                     return GetProfileDateTimeDescription();
             }
 
-            if (tagType > 0x20202020 && tagType < 0x7a7a7a7a)
+            if (tagType is > 0x20202020 and < 0x7a7a7a7a)
                 return GetTagDataString(tagType);
 
             return base.GetDescription(tagType);
@@ -74,13 +51,12 @@ namespace MetadataExtractor.Formats.Icc
             Curv = 0x63757276
         }
 
-        [CanBeNull]
-        private string GetTagDataString(int tagType)
+        private string? GetTagDataString(int tagType)
         {
             try
             {
                 var bytes = Directory.GetByteArray(tagType);
-                if (bytes == null)
+                if (bytes is null)
                     return Directory.GetString(tagType);
 
                 var reader = new ByteArrayReader(bytes);
@@ -91,7 +67,7 @@ namespace MetadataExtractor.Formats.Icc
                 {
                     case IccTagType.Text:
                     {
-#if !PORTABLE
+#if !NETSTANDARD1_3
                         try
                         {
                             return Encoding.ASCII.GetString(bytes, 8, bytes.Length - 8 - 1);
@@ -123,77 +99,34 @@ namespace MetadataExtractor.Formats.Icc
                         var geometryType = reader.GetInt32(24);
                         var flare = reader.GetS15Fixed16(28);
                         var illuminantType = reader.GetInt32(32);
-
-                        string observerString;
-                        switch (observerType)
+                        var observerString = observerType switch
                         {
-                            case 0:
-                                observerString = "Unknown";
-                                break;
-                            case 1:
-                                observerString = "1931 2\u00b0";
-                                break;
-                            case 2:
-                                observerString = "1964 10\u00b0";
-                                break;
-                            default:
-                                observerString = $"Unknown ({observerType})";
-                                break;
-                        }
-
-                        string geometryString;
-                        switch (geometryType)
+                            0 => "Unknown",
+                            1 => "1931 2\u00b0",
+                            2 => "1964 10\u00b0",
+                            _ => $"Unknown ({observerType})",
+                        };
+                        var geometryString = geometryType switch
                         {
-                            case 0:
-                                geometryString = "Unknown";
-                                break;
-                            case 1:
-                                geometryString = "0/45 or 45/0";
-                                break;
-                            case 2:
-                                geometryString = "0/d or d/0";
-                                break;
-                            default:
-                                geometryString = $"Unknown ({observerType})";
-                                break;
-                        }
-
-                        string illuminantString;
-                        switch (illuminantType)
+                            0 => "Unknown",
+                            1 => "0/45 or 45/0",
+                            2 => "0/d or d/0",
+                            _ => $"Unknown ({observerType})",
+                        };
+                        var illuminantString = illuminantType switch
                         {
-                            case 0:
-                                illuminantString = "unknown";
-                                break;
-                            case 1:
-                                illuminantString = "D50";
-                                break;
-                            case 2:
-                                illuminantString = "D65";
-                                break;
-                            case 3:
-                                illuminantString = "D93";
-                                break;
-                            case 4:
-                                illuminantString = "F2";
-                                break;
-                            case 5:
-                                illuminantString = "D55";
-                                break;
-                            case 6:
-                                illuminantString = "A";
-                                break;
-                            case 7:
-                                illuminantString = "Equi-Power (E)";
-                                break;
-                            case 8:
-                                illuminantString = "F8";
-                                break;
-                            default:
-                                illuminantString = $"Unknown ({illuminantType})";
-                                break;
-                        }
-
-                        return $"{observerString} Observer, Backing ({x:0.###}, {y:0.###}, {z:0.###}), Geometry {geometryString}, Flare {(long)Math.Round(flare*100)}%, Illuminant {illuminantString}";
+                            0 => "unknown",
+                            1 => "D50",
+                            2 => "D65",
+                            3 => "D93",
+                            4 => "F2",
+                            5 => "D55",
+                            6 => "A",
+                            7 => "Equi-Power (E)",
+                            8 => "F8",
+                            _ => $"Unknown ({illuminantType})",
+                        };
+                        return $"{observerString} Observer, Backing ({x:0.###}, {y:0.###}, {z:0.###}), Geometry {geometryString}, Flare {(long)Math.Round(flare * 100)}%, Illuminant {illuminantString}";
                     }
 
                     case IccTagType.XyzArray:
@@ -266,7 +199,6 @@ namespace MetadataExtractor.Formats.Icc
             }
         }
 
-        [NotNull]
         private static string FormatDoubleAsString(double value, int precision, bool zeroes)
         {
             if (precision < 1)
@@ -285,12 +217,11 @@ namespace MetadataExtractor.Formats.Icc
             }
 
             intPart += rest;
-            var isNegative = (value < 0) && (intPart != 0 || restKept != 0);
+            var isNegative = value < 0 && (intPart != 0 || restKept != 0);
             return (isNegative ? "-" : string.Empty) + intPart + "." + res;
         }
 
-        [CanBeNull]
-        private string GetRenderingIntentDescription()
+        private string? GetRenderingIntentDescription()
         {
             return GetIndexedDescription(IccDirectory.TagRenderingIntent,
                 "Perceptual",
@@ -299,64 +230,46 @@ namespace MetadataExtractor.Formats.Icc
                 "ICC-Absolute Colorimetric");
         }
 
-        [CanBeNull]
-        private string GetPlatformDescription()
+        private string? GetPlatformDescription()
         {
             var str = Directory.GetString(IccDirectory.TagPlatform);
-            if (str == null)
+            if (str is null)
                 return null;
 
-            switch (str)
+            return str switch
             {
-                case "APPL":
-                    return "Apple Computer, Inc.";
-                case "MSFT":
-                    return "Microsoft Corporation";
-                case "SGI ":
-                    return "Silicon Graphics, Inc.";
-                case "SUNW":
-                    return "Sun Microsystems, Inc.";
-                case "TGNT":
-                    return "Taligent, Inc.";
-                default:
-                    return $"Unknown ({str})";
-            }
+                "APPL" => "Apple Computer, Inc.",
+                "MSFT" => "Microsoft Corporation",
+                "SGI " => "Silicon Graphics, Inc.",
+                "SUNW" => "Sun Microsystems, Inc.",
+                "TGNT" => "Taligent, Inc.",
+                _ => $"Unknown ({str})",
+            };
         }
 
-        [CanBeNull]
-        private string GetProfileClassDescription()
+        private string? GetProfileClassDescription()
         {
             var str = Directory.GetString(IccDirectory.TagProfileClass);
 
-            if (str == null)
+            if (str is null)
                 return null;
 
-            switch (str)
+            return str switch
             {
-                case "scnr":
-                    return "Input Device";
-                case "mntr":
-                    return "Display Device";
-                case "prtr":
-                    return "Output Device";
-                case "link":
-                    return "DeviceLink";
-                case "spac":
-                    return "ColorSpace Conversion";
-                case "abst":
-                    return "Abstract";
-                case "nmcl":
-                    return "Named Color";
-                default:
-                    return $"Unknown ({str})";
-            }
+                "scnr" => "Input Device",
+                "mntr" => "Display Device",
+                "prtr" => "Output Device",
+                "link" => "DeviceLink",
+                "spac" => "ColorSpace Conversion",
+                "abst" => "Abstract",
+                "nmcl" => "Named Color",
+                _ => $"Unknown ({str})",
+            };
         }
 
-        [CanBeNull]
-        private string GetProfileVersionDescription()
+        private string? GetProfileVersionDescription()
         {
-            int value;
-            if (!Directory.TryGetInt32(IccDirectory.TagProfileVersion, out value))
+            if (!Directory.TryGetInt32(IccDirectory.TagProfileVersion, out int value))
                 return null;
 
             var m = (byte)(value >> 24);
@@ -365,11 +278,9 @@ namespace MetadataExtractor.Formats.Icc
             return $"{m}.{r}.{R}";
         }
 
-        [CanBeNull]
-        private string GetProfileDateTimeDescription()
+        private string? GetProfileDateTimeDescription()
         {
-            DateTime value;
-            if (!Directory.TryGetDateTime(IccDirectory.TagProfileDateTime, out value))
+            if (!Directory.TryGetDateTime(IccDirectory.TagProfileDateTime, out DateTime value))
                 return null;
 
             return value.ToString("yyyy:MM:dd HH:mm:ss");

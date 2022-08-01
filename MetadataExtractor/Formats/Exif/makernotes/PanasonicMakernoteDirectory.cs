@@ -1,31 +1,8 @@
-#region License
-//
-// Copyright 2002-2016 Drew Noakes
-// Ported from Java to C# by Yakov Danilov for Imazen LLC in 2014
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// More information about this project is available at:
-//
-//    https://github.com/drewnoakes/metadata-extractor-dotnet
-//    https://drewnoakes.com/code/exif/
-//
-#endregion
+// Copyright (c) Drew Noakes and contributors. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
-using JetBrains.Annotations;
 using MetadataExtractor.IO;
 
 namespace MetadataExtractor.Formats.Exif.Makernotes
@@ -333,6 +310,9 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
         public const int TagSharpness = 0x0041;
         public const int TagFilmMode = 0x0042;
 
+        public const int TagColorTempKelvin = 0x0044;
+        public const int TagBracketSettings = 0x0045;
+
         /// <summary>WB adjust AB.</summary>
         /// <remarks>WB adjust AB. Positive is a shift toward blue.</remarks>
         public const int TagWbAdjustAb = 0x0046;
@@ -341,6 +321,11 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
         /// <remarks>WB adjust GM. Positive is a shift toward green.</remarks>
         public const int TagWbAdjustGm = 0x0047;
 
+        public const int TagFlashCurtain = 0x0048;
+        public const int TagLongExposureNoiseReduction = 0x0049;
+
+        public const int TagPanasonicImageWidth = 0x004b;
+        public const int TagPanasonicImageHeight = 0x004c;
         public const int TagAfPointPosition = 0x004d;
 
         /// <summary>
@@ -360,6 +345,7 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
         public const int TagLensType = 0x0051;
         public const int TagLensSerialNumber = 0x0052;
         public const int TagAccessoryType = 0x0053;
+        public const int TagAccessorySerialNumber = 0x0054;
 
         /// <summary>
         /// (decoded as two 16-bit signed integers)
@@ -378,6 +364,31 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
         /// 3 = High
         /// </summary>
         public const int TagIntelligentExposure = 0x005d;
+
+        public const int TagLensFirmwareVersion = 0x0060;
+        public const int TagBurstSpeed = 0x0077;
+        public const int TagIntelligentDRange = 0x0079;
+        public const int TagClearRetouch = 0x007c;
+        public const int TagCity2 = 0x0080;
+        public const int TagPhotoStyle = 0x0089;
+        public const int TagShadingCompensation = 0x008a;
+
+        public const int TagAccelerometerZ = 0x008c;
+        public const int TagAccelerometerX = 0x008d;
+        public const int TagAccelerometerY = 0x008e;
+        public const int TagCameraOrientation = 0x008f;
+        public const int TagRollAngle = 0x0090;
+        public const int TagPitchAngle = 0x0091;
+        public const int TagSweepPanoramaDirection = 0x0093;
+        public const int TagSweepPanoramaFieldOfView = 0x0094;
+        public const int TagTimerRecording = 0x0096;
+
+        public const int TagInternalNDFilter = 0x009d;
+        public const int TagHdr = 0x009e;
+        public const int TagShutterType = 0x009f;
+
+        public const int TagClearRetouchValue = 0x00a3;
+        public const int TagTouchAe = 0x00ab;
 
         /// <summary>Info at http://www.ozhiker.com/electronics/pjmt/jpeg_info/pim.html</summary>
         public const int TagPrintImageMatchingInfo = 0x0E00;
@@ -442,7 +453,7 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
         /// </summary>
         public const int TagTransform1 = 0x8012;
 
-        private static readonly Dictionary<int, string> _tagNameMap = new Dictionary<int, string>
+        private static readonly Dictionary<int, string> _tagNameMap = new()
         {
             { TagQualityMode, "Quality Mode" },
             { TagFirmwareVersion, "Version" },
@@ -483,15 +494,25 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
             { TagSaturation, "Saturation" },
             { TagSharpness, "Sharpness" },
             { TagFilmMode, "Film Mode" },
+            { TagColorTempKelvin, "Color Temp Kelvin" },
+            { TagBracketSettings, "Bracket Settings" },
             { TagWbAdjustAb, "White Balance Adjust (AB)" },
             { TagWbAdjustGm, "White Balance Adjust (GM)" },
+
+            { TagFlashCurtain, "Flash Curtain" },
+            { TagLongExposureNoiseReduction, "Long Exposure Noise Reduction" },
+            { TagPanasonicImageWidth, "Panasonic Image Width" },
+            { TagPanasonicImageHeight, "Panasonic Image Height" },
+
             { TagAfPointPosition, "Af Point Position" },
             { TagFaceDetectionInfo, "Face Detection Info" },
             { TagLensType, "Lens Type" },
             { TagLensSerialNumber, "Lens Serial Number" },
             { TagAccessoryType, "Accessory Type" },
+            { TagAccessorySerialNumber, "Accessory Serial Number" },
             { TagTransform, "Transform" },
             { TagIntelligentExposure, "Intelligent Exposure" },
+            { TagLensFirmwareVersion, "Lens Firmware Version" },
             { TagFaceRecognitionInfo, "Face Recognition Info" },
             { TagFlashWarning, "Flash Warning" },
             { TagRecognizedFaceFlags, "Recognized Face Flags" },
@@ -503,6 +524,29 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
             { TagCity, "City" },
             { TagLandmark, "Landmark" },
             { TagIntelligentResolution, "Intelligent Resolution" },
+            { TagBurstSpeed, "Burst Speed" },
+            { TagIntelligentDRange, "Intelligent D-Range" },
+            { TagClearRetouch, "Clear Retouch" },
+            { TagCity2, "City 2" },
+            { TagPhotoStyle, "Photo Style" },
+            { TagShadingCompensation, "Shading Compensation" },
+
+            { TagAccelerometerZ, "Accelerometer Z" },
+            { TagAccelerometerX, "Accelerometer X" },
+            { TagAccelerometerY, "Accelerometer Y" },
+            { TagCameraOrientation, "Camera Orientation" },
+            { TagRollAngle, "Roll Angle" },
+            { TagPitchAngle, "Pitch Angle" },
+            { TagSweepPanoramaDirection, "Sweep Panorama Direction" },
+            { TagSweepPanoramaFieldOfView, "Sweep Panorama Field Of View" },
+            { TagTimerRecording, "Timer Recording" },
+
+            { TagInternalNDFilter, "Internal ND Filter" },
+            { TagHdr, "HDR" },
+            { TagShutterType, "Shutter Type" },
+            { TagClearRetouchValue, "Clear Retouch Value" },
+            { TagTouchAe, "Touch AE" },
+
             { TagMakernoteVersion, "Makernote Version" },
             { TagSceneMode, "Scene Mode" },
             { TagWbRedLevel, "White Balance (Red)" },
@@ -516,41 +560,33 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
             { TagTransform1, "Transform 1" }
         };
 
-        public PanasonicMakernoteDirectory()
+        public PanasonicMakernoteDirectory() : base(_tagNameMap)
         {
             SetDescriptor(new PanasonicMakernoteDescriptor(this));
         }
 
         public override string Name => "Panasonic Makernote";
 
-        protected override bool TryGetTagName(int tagType, out string tagName)
-        {
-            return _tagNameMap.TryGetValue(tagType, out tagName);
-        }
-
-        [NotNull, ItemNotNull]
         public IEnumerable<Face> GetDetectedFaces()
         {
             return ParseFaces(this.GetByteArray(TagFaceDetectionInfo), 2, 0, 8);
         }
 
-        [NotNull, ItemNotNull]
         public IEnumerable<Face> GetRecognizedFaces()
         {
             return ParseFaces(this.GetByteArray(TagFaceRecognitionInfo), 4, 20, 44);
         }
 
-        [NotNull]
-        private static IEnumerable<Face> ParseFaces(byte[] bytes, int firstRecordOffset, int posOffset, int recordLength)
+        private static IEnumerable<Face> ParseFaces(byte[]? bytes, int firstRecordOffset, int posOffset, int recordLength)
         {
-            if (bytes == null)
+            if (bytes is null)
                 yield break;
 
-            var reader = new ByteArrayReader(bytes) { IsMotorolaByteOrder = false };
+            var reader = new ByteArrayReader(bytes, isMotorolaByteOrder: false);
 
             int faceCount = reader.GetUInt16(0);
 
-            if (faceCount == 0 || bytes.Length < firstRecordOffset + faceCount*recordLength)
+            if (faceCount == 0 || bytes.Length < firstRecordOffset + faceCount * recordLength)
                 yield break;
 
             posOffset += firstRecordOffset;
@@ -570,11 +606,10 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
         /// <summary>Attempts to convert the underlying string value (as stored in the directory) into an Age object.</summary>
         /// <param name="tag">The tag identifier.</param>
         /// <returns>The parsed Age object, or null if the tag was empty of the value unable to be parsed.</returns>
-        [CanBeNull]
-        public Age GetAge(int tag)
+        public Age? GetAge(int tag)
         {
             var ageString = this.GetString(tag);
-            return ageString == null ? null : Age.FromPanasonicString(ageString);
+            return ageString is null ? null : Age.FromPanasonicString(ageString);
         }
     }
 }

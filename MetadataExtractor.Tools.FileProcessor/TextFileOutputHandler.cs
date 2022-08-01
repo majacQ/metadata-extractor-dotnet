@@ -1,33 +1,18 @@
-#region License
-//
-// Copyright 2002-2016 Drew Noakes
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// More information about this project is available at:
-//
-//    https://github.com/drewnoakes/metadata-extractor-dotnet
-//    https://drewnoakes.com/code/exif/
-//
-#endregion
+// Copyright (c) Drew Noakes and contributors. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using JetBrains.Annotations;
+using System.Text;
 using MetadataExtractor.Formats.FileSystem;
 using MetadataExtractor.Formats.Xmp;
+using MetadataExtractor.Util;
+
+using XmpCore;
+using XmpCore.Impl;
+using XmpCore.Options;
 
 namespace MetadataExtractor.Tools.FileProcessor
 {
@@ -36,97 +21,115 @@ namespace MetadataExtractor.Tools.FileProcessor
     /// </summary>
     internal class TextFileOutputHandler : FileHandlerBase
     {
+        private static readonly string NEW_LINE = "\n";
+        private static readonly string subdir = @"metadata\dotnet";
+
         public override void OnStartingDirectory(string directoryPath)
         {
             base.OnStartingDirectory(directoryPath);
-            System.IO.Directory.Delete(Path.Combine(directoryPath, "metadata"), recursive: true);
+            System.IO.Directory.Delete(Path.Combine(directoryPath, subdir), recursive: true);
         }
 
         public override void OnBeforeExtraction(string filePath, string relativePath, TextWriter log)
         {
             base.OnBeforeExtraction(filePath, relativePath, log);
             log.Write(filePath);
-            log.Write('\n');
+            log.Write(NEW_LINE);
         }
 
-        public override void OnExtractionSuccess(string filePath, IReadOnlyList<Directory> directories, string relativePath, TextWriter log)
+        public override void OnExtractionSuccess(string filePath, IList<Directory> directories, string relativePath, TextWriter log, long streamPosition)
         {
-            base.OnExtractionSuccess(filePath, directories, relativePath, log);
+            base.OnExtractionSuccess(filePath, directories, relativePath, log, streamPosition);
 
             try
             {
-                using (var writer = OpenWriter(filePath))
+                using var writer = OpenWriter(filePath);
+                try
                 {
-                    try
+                    // Write any errors
+                    if (directories.Any(d => d.HasError))
                     {
-                        // Write any errors
-                        if (directories.Any(d => d.HasError))
-                        {
-                            foreach (var directory in directories)
-                            {
-                                if (!directory.HasError)
-                                    continue;
-                                foreach (var error in directory.Errors)
-                                    writer.Write("[ERROR: {0}] {1}\n", directory.Name, error);
-                            }
-                            writer.Write('\n');
-                        }
-
-                        // Write tag values for each directory
                         foreach (var directory in directories)
                         {
-                            var directoryName = directory.Name;
-                            foreach (var tag in directory.Tags)
-                            {
-                                var tagName = tag.Name;
-                                var description = tag.Description;
+                            if (!directory.HasError)
+                                continue;
+                            foreach (var error in directory.Errors)
+                                writer.Write("[ERROR: {0}] {1}\n", directory.Name, error);
+                        }
+                        writer.Write(NEW_LINE);
+                    }
 
-                                if (directory is FileMetadataDirectory && tag.Type == FileMetadataDirectory.TagFileModifiedDate)
-                                    description = "<omitted for regression testing as checkout dependent>";
+                    // Write tag values for each directory
+                    foreach (var directory in directories)
+                    {
+                        var directoryName = directory.Name;
+                        foreach (var tag in directory.Tags)
+                        {
+                            var tagName = tag.Name;
+                            var description = tag.Description;
 
-                                writer.Write("[{0} - 0x{1:x4}] {2} = {3}\n",
-                                    directoryName, tag.Type, tagName, description);
-                            }
+                            if (directory is FileMetadataDirectory && tag.Type == FileMetadataDirectory.TagFileModifiedDate)
+                                description = "<omitted for regression testing as checkout dependent>";
 
-                            if (directory.TagCount != 0)
-                                writer.Write('\n');
-
-                            var xmpDirectory = directory as XmpDirectory;
-                            if (xmpDirectory?.XmpMeta != null)
-                            {
-                                var wrote = false;
-                                foreach (var prop in xmpDirectory.XmpMeta.Properties)
-                                {
-                                    writer.WriteLine($"[XMPMeta - {prop.Namespace}] {prop.Path} = {prop.Value}");
-                                    wrote = true;
-                                }
-                                if (wrote)
-                                    writer.Write('\n');
-                            }
+                            writer.Write("[{0} - 0x{1:x4}] {2} = {3}{4}",
+                                directoryName, tag.Type, tagName, description, NEW_LINE);
                         }
 
-                        // Write file structure
-                        var tree = directories.ToLookup(d => d.Parent);
-                        const int indent = 4;
-                        Action<Directory, int> writeLevel = null;
-                        writeLevel = (parent, level) =>
-                        {
-                            foreach (var child in tree[parent])
-                            {
-                                writer.Write(new string(' ', level*indent));
-                                writer.Write($"- {child.Name}\n");
-                                writeLevel(child, level + 1);
-                            }
-                        };
-                        writeLevel(null, 0);
+                        if (directory.TagCount != 0)
+                            writer.Write(NEW_LINE);
 
-                        writer.Write('\n');
+                        // Special handling for XMP directory data
+                        var xmpDirectory = directory as XmpDirectory;
+                        if (xmpDirectory?.XmpMeta != null)
+                        {
+                            var wrote = false;
+
+                            XmpIterator iterator = new XmpIterator((XmpMeta)xmpDirectory.XmpMeta, null, null, new IteratorOptions() { IsJustLeafNodes = true });
+
+                            while (iterator.HasNext())
+                            {
+                                var prop = (IXmpPropertyInfo)iterator.Next();
+                                var path = prop.Path;
+
+                                if (path is null)
+                                    continue;
+
+                                var ns = prop.Namespace ?? "";
+                                var value = prop.Value ?? "";
+
+                                if (value.Length > 512)
+                                    value = value.Substring(0, 512) + $" <truncated from {value.Length} characters>";
+                                writer.Write($"[XMPMeta - {ns}] {path} = {value}{NEW_LINE}");
+                                wrote = true;
+                            }
+                            if (wrote)
+                                writer.Write(NEW_LINE);
+                        }
                     }
-                    finally
+
+                    // Write file structure
+                    var tree = directories.ToLookup(d => d.Parent);
+
+                    void WriteLevel(Directory? parent, int level)
                     {
-                        writer.Write("Generated using metadata-extractor\n");
-                        writer.Write("https://drewnoakes.com/code/exif/\n");
+                        const int indent = 4;
+
+                        foreach (var child in tree[parent])
+                        {
+                            writer.Write(new string(' ', level * indent));
+                            writer.Write($"- {child.Name}\n");
+                            WriteLevel(child, level + 1);
+                        }
                     }
+
+                    WriteLevel(null, 0);
+
+                    writer.Write(NEW_LINE);
+                }
+                finally
+                {
+                    writer.Write("Generated using metadata-extractor\n");
+                    writer.Write("https://drewnoakes.com/code/exif/\n");
                 }
             }
             catch (Exception e)
@@ -135,19 +138,17 @@ namespace MetadataExtractor.Tools.FileProcessor
             }
         }
 
-        public override void OnExtractionError(string filePath, Exception exception, TextWriter log)
+        public override void OnExtractionError(string filePath, Exception exception, TextWriter log, long streamPosition)
         {
-            base.OnExtractionError(filePath, exception, log);
+            base.OnExtractionError(filePath, exception, log, streamPosition);
 
             try
             {
-                using (var writer = OpenWriter(filePath))
-                {
-                    writer.Write("EXCEPTION: {0}\n", exception.Message);
-                    writer.Write('\n');
-                    writer.Write("Generated using metadata-extractor\n");
-                    writer.Write("https://drewnoakes.com/code/exif/\n");
-                }
+                using var writer = OpenWriter(filePath);
+                writer.Write("EXCEPTION: {0}\n", exception.Message);
+                writer.Write('\n');
+                writer.Write("Generated using metadata-extractor\n");
+                writer.Write("https://drewnoakes.com/code/exif/\n");
             }
             catch (Exception e)
             {
@@ -155,21 +156,29 @@ namespace MetadataExtractor.Tools.FileProcessor
             }
         }
 
-        [NotNull]
         private static TextWriter OpenWriter(string filePath)
         {
             var directoryPath = Path.GetDirectoryName(filePath);
-            var metadataPath = Path.Combine(directoryPath, "metadata");
+            Debug.Assert(directoryPath != null);
+            var metadataPath = Path.Combine(directoryPath, subdir);
             var fileName = Path.GetFileName(filePath);
 
             // Create the output directory if it doesn't exist
             if (!System.IO.Directory.Exists(metadataPath))
                 System.IO.Directory.CreateDirectory(metadataPath);
 
-            var outputPath = $"{directoryPath}/metadata/{fileName}.txt";
+            var outputPath = Path.Combine(metadataPath, $"{fileName}.txt");
 
-            var writer = new StreamWriter(outputPath, false);
-            writer.Write("FILE: {0}\n\n", fileName);
+            var stream = File.Open(outputPath, FileMode.Create);
+            var writer = new StreamWriter(stream, new UTF8Encoding(false));
+            writer.Write("FILE: {0}\n", fileName);
+
+            // Detect file type
+            using (var fileTypeDetectStream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                var fileType = FileTypeDetector.DetectFileType(fileTypeDetectStream);
+                writer.Write("TYPE: {0}\n\n", fileType.ToString().ToUpper());
+            }
 
             return writer;
         }

@@ -1,31 +1,8 @@
-#region License
-//
-// Copyright 2002-2016 Drew Noakes
-// Ported from Java to C# by Yakov Danilov for Imazen LLC in 2014
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// More information about this project is available at:
-//
-//    https://github.com/drewnoakes/metadata-extractor-dotnet
-//    https://drewnoakes.com/code/exif/
-//
-#endregion
+// Copyright (c) Drew Noakes and contributors. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using JetBrains.Annotations;
 
 namespace MetadataExtractor.Formats.Exif
 {
@@ -124,7 +101,10 @@ namespace MetadataExtractor.Formats.Exif
 
         public const int TagDifferential = 0x001E;
 
-        private static readonly Dictionary<int, string> _tagNameMap = new Dictionary<int, string>();
+        /// <summary>GPSHPositioningError	Horizontal positioning error RATIONAL 1</summary>
+        public const int TagHPositioningError = 0x001F;
+
+        private static readonly Dictionary<int, string> _tagNameMap = new();
 
         static GpsDirectory()
         {
@@ -164,27 +144,22 @@ namespace MetadataExtractor.Formats.Exif
             _tagNameMap[TagAreaInformation] = "GPS Area Information";
             _tagNameMap[TagDateStamp] = "GPS Date Stamp";
             _tagNameMap[TagDifferential] = "GPS Differential";
+            _tagNameMap[TagHPositioningError] = "GPS Horizontal Positioning Error";
         }
 
-        public GpsDirectory()
+        public GpsDirectory() : base(_tagNameMap)
         {
             SetDescriptor(new GpsDescriptor(this));
         }
 
         public override string Name => "GPS";
 
-        protected override bool TryGetTagName(int tagType, out string tagName)
-        {
-            return _tagNameMap.TryGetValue(tagType, out tagName);
-        }
-
         /// <summary>
         /// Parses various tags in an attempt to obtain a single object representing the latitude and longitude
         /// at which this image was captured.
         /// </summary>
-        /// <returns>The geographical location of this image, if possible, otherwise <c>null</c>.</returns>
-        [CanBeNull]
-        public GeoLocation GetGeoLocation()
+        /// <returns>The geographical location of this image, if possible, otherwise <see langword="null" />.</returns>
+        public GeoLocation? GetGeoLocation()
         {
             var latitudes = this.GetRationalArray(TagLatitude);
             var longitudes = this.GetRationalArray(TagLongitude);
@@ -192,15 +167,17 @@ namespace MetadataExtractor.Formats.Exif
             var longitudeRef = this.GetString(TagLongitudeRef);
 
             // Make sure we have the required values
-            if (latitudes == null || latitudes.Length != 3)
+            if (latitudes is null || latitudes.Length != 3)
                 return null;
-            if (longitudes == null || longitudes.Length != 3)
+            if (longitudes is null || longitudes.Length != 3)
                 return null;
-            if (latitudeRef == null || longitudeRef == null)
+            if (latitudeRef is null || longitudeRef is null)
                 return null;
 
+#pragma warning disable format
             var lat = GeoLocation.DegreesMinutesSecondsToDecimal(latitudes[0],  latitudes[1],  latitudes[2],  latitudeRef.Equals("S", StringComparison.OrdinalIgnoreCase));
             var lon = GeoLocation.DegreesMinutesSecondsToDecimal(longitudes[0], longitudes[1], longitudes[2], longitudeRef.Equals("W", StringComparison.OrdinalIgnoreCase));
+#pragma warning restore format
 
             // This can return null, in cases where the conversion was not possible
             if (lat == null || lon == null)
@@ -220,7 +197,7 @@ namespace MetadataExtractor.Formats.Exif
 
             var timeComponents = this.GetRationalArray(TagTimeStamp);
 
-            if (timeComponents == null || timeComponents.Length != 3)
+            if (timeComponents is null || timeComponents.Length != 3)
                 return false;
 
             date = date

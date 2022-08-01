@@ -1,30 +1,7 @@
-#region License
-//
-// Copyright 2002-2016 Drew Noakes
-// Ported from Java to C# by Yakov Danilov for Imazen LLC in 2014
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// More information about this project is available at:
-//
-//    https://github.com/drewnoakes/metadata-extractor-dotnet
-//    https://drewnoakes.com/code/exif/
-//
-#endregion
+// Copyright (c) Drew Noakes and contributors. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using System;
 using System.Text;
-using JetBrains.Annotations;
 
 namespace MetadataExtractor
 {
@@ -41,10 +18,9 @@ namespace MetadataExtractor
         /// </summary>
         /// <param name="s">The string in format <c>0031:07:15 00:00:00</c>.</param>
         /// <returns>The parsed Age object, or null if the value could not be parsed</returns>
-        [CanBeNull]
-        public static Age FromPanasonicString([NotNull] string s)
+        public static Age? FromPanasonicString(string s)
         {
-            if (s == null)
+            if (s is null)
                 throw new ArgumentNullException(nameof(s));
 
             if (s.Length != 19 || s.StartsWith("9999:99:99"))
@@ -53,12 +29,12 @@ namespace MetadataExtractor
             try
             {
                 return new Age(
-                    years: int.Parse(s.Substring (0, 4 - 0)),
-                    months: int.Parse(s.Substring (5, 7 - 5)),
-                    days: int.Parse(s.Substring (8, 10 - 8)),
-                    hours: int.Parse(s.Substring (11, 13 - 11)),
-                    minutes: int.Parse(s.Substring (14, 16 - 14)),
-                    seconds: int.Parse(s.Substring (17, 19 - 17)));
+                    years: int.Parse(s.Substring(0, 4 - 0)),
+                    months: int.Parse(s.Substring(5, 7 - 5)),
+                    days: int.Parse(s.Substring(8, 10 - 8)),
+                    hours: int.Parse(s.Substring(11, 13 - 11)),
+                    minutes: int.Parse(s.Substring(14, 16 - 14)),
+                    seconds: int.Parse(s.Substring(17, 19 - 17)));
             }
             catch (FormatException)
             {
@@ -88,7 +64,6 @@ namespace MetadataExtractor
             return $"{Years:D4}:{Months:D2}:{Days:D2} {Hours:D2}:{Minutes:D2}:{Seconds:D2}";
         }
 
-        [NotNull]
         public string ToFriendlyString()
         {
             var result = new StringBuilder();
@@ -101,7 +76,7 @@ namespace MetadataExtractor
             return result.ToString();
         }
 
-        private static void AppendAgePart([NotNull] StringBuilder result, int num, string singularName)
+        private static void AppendAgePart(StringBuilder result, int num, string singularName)
         {
             if (num == 0)
                 return;
@@ -114,18 +89,18 @@ namespace MetadataExtractor
 
         #region Equality and hashing
 
-        private bool Equals([NotNull] Age other)
+        private bool Equals(Age? other)
         {
-            return Years == other.Years && Months == other.Months && Days == other.Days && Hours == other.Hours && Minutes == other.Minutes && Seconds == other.Seconds;
+            return other != null && Years == other.Years && Months == other.Months && Days == other.Days && Hours == other.Hours && Minutes == other.Minutes && Seconds == other.Seconds;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            if (ReferenceEquals(null, obj))
+            if (obj is null)
                 return false;
             if (ReferenceEquals(this, obj))
                 return true;
-            return obj is Age && Equals((Age)obj);
+            return obj is Age age && Equals(age);
         }
 
         public override int GetHashCode()
@@ -133,11 +108,11 @@ namespace MetadataExtractor
             unchecked
             {
                 var hashCode = Years;
-                hashCode = (hashCode*397) ^ Months;
-                hashCode = (hashCode*397) ^ Days;
-                hashCode = (hashCode*397) ^ Hours;
-                hashCode = (hashCode*397) ^ Minutes;
-                hashCode = (hashCode*397) ^ Seconds;
+                hashCode = (hashCode * 397) ^ Months;
+                hashCode = (hashCode * 397) ^ Days;
+                hashCode = (hashCode * 397) ^ Hours;
+                hashCode = (hashCode * 397) ^ Minutes;
+                hashCode = (hashCode * 397) ^ Seconds;
                 return hashCode;
             }
         }

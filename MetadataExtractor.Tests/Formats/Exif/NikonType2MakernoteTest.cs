@@ -1,27 +1,6 @@
-#region License
-//
-// Copyright 2002-2016 Drew Noakes
-// Ported from Java to C# by Yakov Danilov for Imazen LLC in 2014
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// More information about this project is available at:
-//
-//    https://github.com/drewnoakes/metadata-extractor-dotnet
-//    https://drewnoakes.com/code/exif/
-//
-#endregion
+// Copyright (c) Drew Noakes and contributors. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
+using System.Collections.Generic;
 using System.Linq;
 using MetadataExtractor.Formats.Exif;
 using MetadataExtractor.Formats.Exif.Makernotes;
@@ -37,7 +16,7 @@ namespace MetadataExtractor.Tests.Formats.Exif
         [Fact, UseCulture("en-GB")]
         public void NikonType2MakernoteTest1()
         {
-            var directory = ExifReaderTest.ProcessSegmentBytes<NikonType2MakernoteDirectory>("Tests/Data/nikonMakernoteType2a.jpg.app1", JpegSegmentType.App1);
+            var directory = ExifReaderTest.ProcessSegmentBytes<NikonType2MakernoteDirectory>("Data/nikonMakernoteType2a.jpg.app1", JpegSegmentType.App1);
 
             Assert.NotNull(directory);
 
@@ -76,26 +55,28 @@ namespace MetadataExtractor.Tests.Formats.Exif
                 [Nikon Makernote] Unknown 15 = 78/10 78/10
             */
 
-            Assert.Equal("48 50 48 48", directory.GetString(NikonType2MakernoteDirectory.TagFirmwareVersion));
-            Assert.Equal("0 320", directory.GetString(NikonType2MakernoteDirectory.TagIso1));
-            Assert.Equal("0 320", directory.GetString(NikonType2MakernoteDirectory.TagIsoRequested));
-            Assert.Equal("FLASH       ", directory.GetString(NikonType2MakernoteDirectory.TagCameraWhiteBalance));
-            Assert.Equal("AUTO  ", directory.GetString(NikonType2MakernoteDirectory.TagCameraSharpening));
-            Assert.Equal("AF-C  ", directory.GetString(NikonType2MakernoteDirectory.TagAfType));
-            Assert.Equal("NORMAL      ", directory.GetString(NikonType2MakernoteDirectory.TagFlashSyncMode));
-            Assert.Equal("0", directory.GetString(NikonType2MakernoteDirectory.TagCameraWhiteBalanceFine));
-            Assert.Equal("914", directory.GetString(NikonType2MakernoteDirectory.TagPreviewIfd));
-            Assert.Equal("AUTO    ", directory.GetString(NikonType2MakernoteDirectory.TagCameraToneCompensation));
-            Assert.Equal("6", directory.GetString(NikonType2MakernoteDirectory.TagLensType));
+#pragma warning disable format
+            Assert.Equal("48 50 48 48",               directory.GetString(NikonType2MakernoteDirectory.TagFirmwareVersion));
+            Assert.Equal("0 320",                     directory.GetString(NikonType2MakernoteDirectory.TagIso1));
+            Assert.Equal("0 320",                     directory.GetString(NikonType2MakernoteDirectory.TagIsoRequested));
+            Assert.Equal("FLASH       ",              directory.GetString(NikonType2MakernoteDirectory.TagCameraWhiteBalance));
+            Assert.Equal("AUTO  ",                    directory.GetString(NikonType2MakernoteDirectory.TagCameraSharpening));
+            Assert.Equal("AF-C  ",                    directory.GetString(NikonType2MakernoteDirectory.TagAfType));
+            Assert.Equal("NORMAL      ",              directory.GetString(NikonType2MakernoteDirectory.TagFlashSyncMode));
+            Assert.Equal("0",                         directory.GetString(NikonType2MakernoteDirectory.TagCameraWhiteBalanceFine));
+            Assert.Equal("914",                       directory.GetString(NikonType2MakernoteDirectory.TagPreviewIfd));
+            Assert.Equal("AUTO    ",                  directory.GetString(NikonType2MakernoteDirectory.TagCameraToneCompensation));
+            Assert.Equal("6",                         directory.GetString(NikonType2MakernoteDirectory.TagLensType));
             Assert.Equal("240/10 850/10 35/10 45/10", directory.GetString(NikonType2MakernoteDirectory.TagLens));
-            Assert.Equal("0", directory.GetString(NikonType2MakernoteDirectory.TagFlashUsed));
-            Assert.Equal("1", directory.GetString(NikonType2MakernoteDirectory.TagShootingMode));
-            Assert.Equal("0", directory.GetString(NikonType2MakernoteDirectory.TagUnknown20));
-            Assert.Equal("MODE1   ", directory.GetString(NikonType2MakernoteDirectory.TagCameraColorMode));
-            Assert.Equal("NATURAL    ", directory.GetString(NikonType2MakernoteDirectory.TagLightSource));
-            Assert.Equal("0", directory.GetString(NikonType2MakernoteDirectory.TagCameraHueAdjustment));
-            Assert.Equal("OFF ", directory.GetString(NikonType2MakernoteDirectory.TagNoiseReduction));
-            Assert.Equal("78/10 78/10", directory.GetString(NikonType2MakernoteDirectory.TagSensorPixelSize));
+            Assert.Equal("0",                         directory.GetString(NikonType2MakernoteDirectory.TagFlashUsed));
+            Assert.Equal("1",                         directory.GetString(NikonType2MakernoteDirectory.TagShootingMode));
+            Assert.Equal("0",                         directory.GetString(NikonType2MakernoteDirectory.TagUnknown20));
+            Assert.Equal("MODE1   ",                  directory.GetString(NikonType2MakernoteDirectory.TagCameraColorMode));
+            Assert.Equal("NATURAL    ",               directory.GetString(NikonType2MakernoteDirectory.TagLightSource));
+            Assert.Equal("0",                         directory.GetString(NikonType2MakernoteDirectory.TagCameraHueAdjustment));
+            Assert.Equal("OFF ",                      directory.GetString(NikonType2MakernoteDirectory.TagNoiseReduction));
+            Assert.Equal("78/10 78/10",               directory.GetString(NikonType2MakernoteDirectory.TagSensorPixelSize));
+#pragma warning restore format
 
             var descriptor = new NikonType2MakernoteDescriptor(directory);
 
@@ -112,7 +93,7 @@ namespace MetadataExtractor.Tests.Formats.Exif
         [Fact, UseCulture("en-GB")]
         public void NikonType2MakernoteTest2()
         {
-            var directories = ExifReaderTest.ProcessSegmentBytes("Tests/Data/nikonMakernoteType2b.jpg.app1", JpegSegmentType.App1).ToList();
+            var directories = ExifReaderTest.ProcessSegmentBytes("Data/nikonMakernoteType2b.jpg.app1", JpegSegmentType.App1).ToList();
 
             /*
                 [Nikon Makernote] Makernote Unknown 1 =
@@ -160,11 +141,41 @@ namespace MetadataExtractor.Tests.Formats.Exif
             Assert.Equal("                ", nikonDirectory.GetString(0x008f));
             Assert.Equal(0, nikonDirectory.GetInt32(0x0094));
             Assert.Equal("FPNR", nikonDirectory.GetString(0x0095));
-            Assert.Equal("80 114 105 110 116 73 77 0 48 49 48 48 0 0 13 0 1 0 22 0 22 0 2 0 1 0 0 0 3 0 94 0 0 0 7 0 0 0 0 0 8 0 0 0 0 0 9 0 0 0 0 0 " +
+
+            // PrintIM
+            var expectedData = new Dictionary<int, string>
+            {
+                { 0x0000, "0100" },
+                { 0x0001, "0x00160016" },
+                { 0x0002, "0x00000001" },
+                { 0x0003, "0x0000005e" },
+                { 0x0007, "0x00000000" },
+                { 0x0008, "0x00000000" },
+                { 0x0009, "0x00000000" },
+                { 0x000A, "0x00000000" },
+                { 0x000B, "0x000000a6" },
+                { 0x000C, "0x00000000" },
+                { 0x000D, "0x00000000" },
+                { 0x000E, "0x000000be" },
+                { 0x0100, "0x00000005" },
+                { 0x0101, "0x00000001" }
+            };
+
+            var nikonPrintImDirectory = directories.OfType<PrintIMDirectory>().SingleOrDefault();
+
+            Assert.NotNull(nikonPrintImDirectory);
+
+            Assert.Equal(expectedData.Count, nikonPrintImDirectory.Tags.Count);
+            foreach (var expected in expectedData)
+            {
+                Assert.Equal(expected.Value, nikonPrintImDirectory.GetDescription(expected.Key));
+            }
+
+            /*Assert.Equal("80 114 105 110 116 73 77 0 48 49 48 48 0 0 13 0 1 0 22 0 22 0 2 0 1 0 0 0 3 0 94 0 0 0 7 0 0 0 0 0 8 0 0 0 0 0 9 0 0 0 0 0 " +
                             "10 0 0 0 0 0 11 0 166 0 0 0 12 0 0 0 0 0 13 0 0 0 0 0 14 0 190 0 0 0 0 1 5 0 0 0 1 1 1 0 0 0 9 17 0 0 16 39 0 0 11 15 0 0 16 " +
                             "39 0 0 151 5 0 0 16 39 0 0 176 8 0 0 16 39 0 0 1 28 0 0 16 39 0 0 94 2 0 0 16 39 0 0 139 0 0 0 16 39 0 0 203 3 0 0 16 39 " +
                             "0 0 229 27 0 0 16 39 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
-                            nikonDirectory.GetString(0x0e00));
+                            nikonPrintImDirectory.GetString(0x0e00));*/
             //            Assert.Equals("PrintIM", _nikonDirectory.GetString(0x0e00));
             Assert.Equal(1394, nikonDirectory.GetInt32(0x0e10));
 
@@ -262,7 +273,7 @@ namespace MetadataExtractor.Tests.Formats.Exif
             Assert.Equal(72, thumbDirectory.GetInt32(ExifDirectoryBase.TagYResolution));
         }
 
-        [Fact]
+        [Fact, UseCulture("en-GB")]
         public void GetAutoFlashCompensationDescription()
         {
             var directory = new NikonType2MakernoteDirectory();

@@ -1,32 +1,9 @@
-#region License
-//
-// Copyright 2002-2016 Drew Noakes
-// Ported from Java to C# by Yakov Danilov for Imazen LLC in 2014
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// More information about this project is available at:
-//
-//    https://github.com/drewnoakes/metadata-extractor-dotnet
-//    https://drewnoakes.com/code/exif/
-//
-#endregion
+// Copyright (c) Drew Noakes and contributors. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using JetBrains.Annotations;
 
 namespace MetadataExtractor.IO
 {
@@ -35,32 +12,50 @@ namespace MetadataExtractor.IO
     {
         private const int DefaultChunkLength = 2 * 1024;
 
-        [NotNull]
         private readonly Stream _stream;
         private readonly int _chunkLength;
-        private readonly List<byte[]> _chunks = new List<byte[]>();
+        private readonly List<byte[]> _chunks = new();
         private bool _isStreamFinished;
         private int _streamLength;
+        private bool _streamLengthThrewException;
 
-        public IndexedCapturingReader([NotNull] Stream stream, int chunkLength = DefaultChunkLength)
+        public IndexedCapturingReader(Stream stream, int chunkLength = DefaultChunkLength, bool isMotorolaByteOrder = true)
+            : base(isMotorolaByteOrder)
         {
-            if (stream == null)
-                throw new ArgumentNullException(nameof(stream));
             if (chunkLength <= 0)
-                throw new ArgumentException("chunkLength must be greater than zero");
+                throw new ArgumentOutOfRangeException(nameof(chunkLength), "Must be greater than zero.");
 
             _chunkLength = chunkLength;
-            _stream = stream;
+            _stream = stream ?? throw new ArgumentNullException(nameof(stream));
         }
 
-        /// <summary>Reads to the end of the stream, in order to determine the total number of bytes.</summary>
-        /// <remarks>In general, this is not a good idea for this implementation of <see cref="IndexedReader"/>.</remarks>
-        /// <value>the length of the data source, in bytes.</value>
+        /// <summary>
+        /// Returns the length of the data stream this reader is reading from.
+        /// </summary>
+        /// <remarks>
+        /// If the underlying stream's <see cref="Stream.Length"/> property does not throw <see cref="NotSupportedException"/> then it can be used directly.
+        /// However if it does throw, then this class has no alternative but to reads to the end of the stream in order to determine the total number of bytes.
+        /// <para />
+        /// In general, this is not a good idea for this implementation of <see cref="IndexedReader"/>.
+        /// </remarks>
+        /// <value>The length of the data source, in bytes.</value>
         /// <exception cref="BufferBoundsException"/>
         public override long Length
         {
             get
             {
+                if (!_streamLengthThrewException)
+                {
+                    try
+                    {
+                        return _stream.Length;
+                    }
+                    catch (NotSupportedException)
+                    {
+                        _streamLengthThrewException = true;
+                    }
+                }
+
                 IsValidIndex(int.MaxValue, 1);
                 Debug.Assert(_isStreamFinished);
                 return _streamLength;
@@ -75,18 +70,18 @@ namespace MetadataExtractor.IO
         /// <exception cref="BufferBoundsException">if the stream ends before the required number of bytes are acquired</exception>
         protected override void ValidateIndex(int index, int bytesRequested)
         {
-            if (index < 0)
-                throw new BufferBoundsException($"Attempt to read from buffer using a negative index ({index})");
-            if (bytesRequested < 0)
-                throw new BufferBoundsException("Number of requested bytes must be zero or greater");
-            if ((long)index + bytesRequested - 1 > int.MaxValue)
-                throw new BufferBoundsException($"Number of requested bytes summed with starting index exceed maximum range of signed 32 bit integers (requested index: {index}, requested count: {bytesRequested})");
-
             if (!IsValidIndex(index, bytesRequested))
             {
+                if (index < 0)
+                    throw new BufferBoundsException($"Attempt to read from buffer using a negative index ({index})");
+                if (bytesRequested < 0)
+                    throw new BufferBoundsException("Number of requested bytes must be zero or greater");
+                if ((long)index + bytesRequested - 1 > int.MaxValue)
+                    throw new BufferBoundsException($"Number of requested bytes summed with starting index exceed maximum range of signed 32 bit integers (requested index: {index}, requested count: {bytesRequested})");
+
                 Debug.Assert(_isStreamFinished);
                 // TODO test that can continue using an instance of this type after this exception
-                throw new BufferBoundsException(index, bytesRequested, _streamLength);
+                throw new BufferBoundsException(ToUnshiftedOffset(index), bytesRequested, _streamLength);
             }
         }
 
@@ -105,7 +100,6 @@ namespace MetadataExtractor.IO
 
             var chunkIndex = endIndex / _chunkLength;
 
-            // TODO test loading several chunks for a single request
             while (chunkIndex >= _chunks.Count)
             {
                 Debug.Assert(!_isStreamFinished);
@@ -140,10 +134,11 @@ namespace MetadataExtractor.IO
             return true;
         }
 
+        public override int ToUnshiftedOffset(int localOffset) => localOffset;
+
         public override byte GetByte(int index)
         {
             ValidateIndex(index, 1);
-            Debug.Assert(index >= 0);
 
             var chunkIndex = index / _chunkLength;
             var innerIndex = index % _chunkLength;
@@ -171,6 +166,42 @@ namespace MetadataExtractor.IO
                 toIndex += length;
             }
             return bytes;
+        }
+
+        public override IndexedReader WithByteOrder(bool isMotorolaByteOrder) => isMotorolaByteOrder == IsMotorolaByteOrder ? this : new ShiftedIndexedCapturingReader(this, 0, isMotorolaByteOrder);
+
+        public override IndexedReader WithShiftedBaseOffset(int shift) => shift == 0 ? this : new ShiftedIndexedCapturingReader(this, shift, IsMotorolaByteOrder);
+
+        private sealed class ShiftedIndexedCapturingReader : IndexedReader
+        {
+            private readonly IndexedCapturingReader _baseReader;
+            private readonly int _baseOffset;
+
+            public ShiftedIndexedCapturingReader(IndexedCapturingReader baseReader, int baseOffset, bool isMotorolaByteOrder)
+                : base(isMotorolaByteOrder)
+            {
+                if (baseOffset < 0)
+                    throw new ArgumentOutOfRangeException(nameof(baseOffset), "Must be zero or greater.");
+
+                _baseReader = baseReader;
+                _baseOffset = baseOffset;
+            }
+
+            public override IndexedReader WithByteOrder(bool isMotorolaByteOrder) => isMotorolaByteOrder == IsMotorolaByteOrder ? this : new ShiftedIndexedCapturingReader(_baseReader, _baseOffset, isMotorolaByteOrder);
+
+            public override IndexedReader WithShiftedBaseOffset(int shift) => shift == 0 ? this : new ShiftedIndexedCapturingReader(_baseReader, _baseOffset + shift, IsMotorolaByteOrder);
+
+            public override int ToUnshiftedOffset(int localOffset) => localOffset + _baseOffset;
+
+            public override byte GetByte(int index) => _baseReader.GetByte(_baseOffset + index);
+
+            public override byte[] GetBytes(int index, int count) => _baseReader.GetBytes(_baseOffset + index, count);
+
+            protected override void ValidateIndex(int index, int bytesRequested) => _baseReader.ValidateIndex(index + _baseOffset, bytesRequested);
+
+            protected override bool IsValidIndex(int index, int bytesRequested) => _baseReader.IsValidIndex(index + _baseOffset, bytesRequested);
+
+            public override long Length => _baseReader.Length - _baseOffset;
         }
     }
 }

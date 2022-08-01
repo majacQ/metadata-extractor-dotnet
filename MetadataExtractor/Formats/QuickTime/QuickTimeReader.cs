@@ -1,32 +1,8 @@
-﻿#region License
-//
-// Copyright 2002-2016 Drew Noakes
-//
-//    Licensed under the Apache License, Version 2.0 (the "License");
-//    you may not use this file except in compliance with the License.
-//    You may obtain a copy of the License at
-//
-//        http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS,
-//    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//    See the License for the specific language governing permissions and
-//    limitations under the License.
-//
-// More information about this project is available at:
-//
-//    https://github.com/drewnoakes/metadata-extractor-dotnet
-//    https://drewnoakes.com/code/exif/
-//
-#endregion
+﻿// Copyright (c) Drew Noakes and contributors. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
 using System;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text;
-using JetBrains.Annotations;
 using MetadataExtractor.IO;
 
 namespace MetadataExtractor.Formats.QuickTime
@@ -81,14 +57,13 @@ namespace MetadataExtractor.Formats.QuickTime
         /// <summary>
         /// Gets the string representation of this atom's type.
         /// </summary>
-        [NotNull]
         public string TypeString
         {
             get
             {
                 var bytes = BitConverter.GetBytes(Type);
-                bytes = bytes.Reverse().ToArray();
-#if PORTABLE
+                Array.Reverse(bytes);
+#if NETSTANDARD1_3
                 return Encoding.UTF8.GetString(bytes, 0, bytes.Length);
 #else
                 return Encoding.ASCII.GetString(bytes);
@@ -105,6 +80,9 @@ namespace MetadataExtractor.Formats.QuickTime
     /// <summary>
     /// Static class for processing atoms the QuickTime container format.
     /// </summary>
+    /// <remarks>
+    /// QuickTime file format specification: https://developer.apple.com/library/mac/documentation/QuickTime/QTFF/qtff.pdf
+    /// </remarks>
     public static class QuickTimeReader
     {
         /// <summary>
@@ -113,7 +91,7 @@ namespace MetadataExtractor.Formats.QuickTime
         /// <param name="stream">The stream to read atoms from.</param>
         /// <param name="handler">A callback function to handle each atom.</param>
         /// <param name="stopByBytes">The maximum number of bytes to process before discontinuing.</param>
-        public static void ProcessAtoms([NotNull] Stream stream, [NotNull] Action<AtomCallbackArgs> handler, long stopByBytes = -1)
+        public static void ProcessAtoms(Stream stream, Action<AtomCallbackArgs> handler, long stopByBytes = -1)
         {
             var reader = new SequentialStreamReader(stream);
 
@@ -123,49 +101,63 @@ namespace MetadataExtractor.Formats.QuickTime
             {
                 var atomStartPos = stream.Position;
 
-                // Length of the atom's data, in bytes, including size bytes
-                long atomSize;
                 try
                 {
-                    atomSize = reader.GetUInt32();
+                    // Check if the end of the stream is closer then 8 bytes to current position (Length of the atom's data + atom type)
+                    if (reader.IsCloserToEnd(8))
+                        return;
+
+                    // Length of the atom's data, in bytes, including size bytes
+                    long atomSize = reader.GetUInt32();
+
+                    // Typically four ASCII characters, but may be non-printable.
+                    // By convention, lowercase 4CCs are reserved by Apple.
+                    var atomType = reader.GetUInt32();
+
+                    if (atomSize == 1)
+                    {
+                        // Check if the end of the stream is closer then 8 bytes
+                        if (reader.IsCloserToEnd(8))
+                            return;
+
+                        // Size doesn't fit in 32 bits so read the 64 bit size here
+                        atomSize = checked((long)reader.GetUInt64());
+                    }
+                    else if (atomSize < 8)
+                    {
+                        // Atom should be at least 8 bytes long
+                        return;
+                    }
+
+                    var args = new AtomCallbackArgs(atomType, atomSize, stream, atomStartPos, reader);
+
+                    handler(args);
+
+                    if (args.Cancel)
+                        return;
+
+                    if (atomSize == 0)
+                        return;
+
+                    var toSkip = atomStartPos + atomSize - stream.Position;
+
+                    if (toSkip < 0)
+                    {
+                        // Atoms are nested within each other. We have delegated to a sub-atom handler to
+                        // process this atom's data, but it read more than it should have.
+                        // TODO log this error somewhere (we don't have a directory available here)
+                        return;
+                    }
+
+                    // To avoid exception handling we can check if needed number of bytes are available
+                    if (!reader.IsCloserToEnd(toSkip))
+                        reader.TrySkip(toSkip);
                 }
                 catch (IOException)
                 {
-                    // TODO don't use exception to trap end of stream
+                    // Exception trapping is used when stream doesn't support stream length method only
                     return;
                 }
-
-                // Typically four ASCII characters, but may be non-printable.
-                // By convention, lowercase 4CCs are reserved by Apple.
-                var atomType = reader.GetUInt32();
-
-                if (atomSize == 1)
-                {
-                    // Size doesn't fit in 32 bits so read the 64 bit size here
-                    // TODO GetUInt64 (i.e. unsigned)
-                    atomSize = reader.GetInt64();
-                }
-                else
-                {
-                    Debug.Assert(atomSize >= 8, "Atom should be at least 8 bytes long");
-                }
-
-                var args = new AtomCallbackArgs(atomType, atomSize, stream, atomStartPos, reader);
-
-                handler(args);
-
-                if (args.Cancel)
-                    return;
-
-                if (atomSize == 0)
-                    return;
-
-                var toSkip = atomStartPos + atomSize - stream.Position;
-
-                if (toSkip < 0)
-                    throw new Exception("Handler moved stream beyond end of atom");
-
-                reader.TrySkip(toSkip);
             }
         }
     }
