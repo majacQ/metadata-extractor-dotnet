@@ -2,6 +2,7 @@
 
 [![Build Status](https://dev.azure.com/metadata-extractor/metadata-extractor-dotnet/_apis/build/status/drewnoakes.metadata-extractor-dotnet?branchName=master)](https://dev.azure.com/metadata-extractor/metadata-extractor-dotnet/_build/latest?definitionId=1&branchName=master)
 [![MetadataExtractor NuGet version](https://img.shields.io/nuget/v/MetadataExtractor)](https://www.nuget.org/packages/MetadataExtractor/)
+[![MetadataExtractor on fuget.org](https://www.fuget.org/packages/MetadataExtractor/badge.svg)](https://www.fuget.org/packages/MetadataExtractor)
 [![MetadataExtractor Nuget download count](https://img.shields.io/nuget/dt/MetadataExtractor)](https://www.nuget.org/packages/MetadataExtractor/)
 
 _MetadataExtractor_ is a straightforward .NET library for reading metadata from image, movie and audio files.
@@ -14,7 +15,7 @@ Either add this to your project file
 
 ```xml
 <ItemGroup>
-    <PackageReference Include="MetadataExtractor" Version="2.6.0" />
+    <PackageReference Include="MetadataExtractor" Version="2.7.2" />
 </ItemGroup>
 ```
 
@@ -95,7 +96,7 @@ It supports various file types.
   * PNG
   * PSD
   * TGA
-  * TIFF
+  * TIFF / BigTIFF
   * WebP
   * Camera Raw
     * ARW (Sony)

@@ -83,7 +83,7 @@ namespace MetadataExtractor.Formats.Png
 
         public string? GetTextualDataDescription()
         {
-            return !(Directory.GetObject(PngDirectory.TagTextualData) is IList<KeyValuePair> pairs)
+            return Directory.GetObject(PngDirectory.TagTextualData) is not IList<KeyValuePair> pairs
                 ? null
                 : string.Join(
                     "\n",
@@ -97,7 +97,7 @@ namespace MetadataExtractor.Formats.Png
         public string? GetBackgroundColorDescription()
         {
             var bytes = Directory.GetByteArray(PngDirectory.TagBackgroundColor);
-            if (bytes == null)
+            if (bytes is null)
                 return null;
 
             var reader = new SequentialByteArrayReader(bytes);

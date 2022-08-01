@@ -103,8 +103,8 @@ namespace MetadataExtractor.Tools.FileProcessor
                     var fileName = Path.GetFileName(filePath);
                     var urlName = Uri.EscapeDataString(filePath).Replace("%20", "+");
                     var exifIfd0Directory = directories.OfType<ExifIfd0Directory>().FirstOrDefault();
-                    var make = exifIfd0Directory == null ? string.Empty : exifIfd0Directory.GetString(ExifDirectoryBase.TagMake);
-                    var model = exifIfd0Directory == null ? string.Empty : exifIfd0Directory.GetString(ExifDirectoryBase.TagModel);
+                    var make = exifIfd0Directory is null ? string.Empty : exifIfd0Directory.GetString(ExifDirectoryBase.TagMake);
+                    var model = exifIfd0Directory is null ? string.Empty : exifIfd0Directory.GetString(ExifDirectoryBase.TagModel);
                     Console.Out.WriteLine();
                     Console.Out.WriteLine("---");
                     Console.Out.WriteLine();
@@ -130,8 +130,8 @@ namespace MetadataExtractor.Tools.FileProcessor
                             description = tag.Description;
 
                             // truncate the description if it's too long
-                            if (description != null && description.Length > 1024)
-                                description = description.Substring(0, 1024 - 0) + "...";
+                            if (description is { Length: > 1024 })
+                                description = description[..1024] + "...";
                         }
                         catch (Exception e)
                         {
@@ -150,7 +150,7 @@ namespace MetadataExtractor.Tools.FileProcessor
                             description);
                     }
 
-                    if (directory is XmpDirectory xmpDirectory && xmpDirectory.XmpMeta != null)
+                    if (directory is XmpDirectory { XmpMeta: { } } xmpDirectory)
                     {
                         foreach (var property in xmpDirectory.XmpMeta.Properties)
                         {
@@ -230,7 +230,7 @@ namespace MetadataExtractor.Tools.FileProcessor
                 return 1;
             }
 
-            if (fileHandler == null)
+            if (fileHandler is null)
                 fileHandler = new BasicFileHandler();
 
             var stopwatch = Stopwatch.StartNew();

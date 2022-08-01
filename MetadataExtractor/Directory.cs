@@ -63,7 +63,7 @@ namespace MetadataExtractor
         /// <returns><c>true</c> if the tag is known and <paramref name="tagName"/> was set, otherwise <c>false</c>.</returns>
         protected virtual bool TryGetTagName(int tagType, [NotNullWhen(returnValue: true)] out string? tagName)
         {
-            if (_tagNameMap == null)
+            if (_tagNameMap is null)
             {
                 tagName = default;
                 return false;
@@ -133,7 +133,7 @@ namespace MetadataExtractor
         /// <exception cref="ArgumentNullException">if value is <see langword="null" /></exception>
         public virtual void Set(int tagType, object value)
         {
-            if (value == null)
+            if (value is null)
                 throw new ArgumentNullException(nameof(value));
 
             if (!_tagMap.ContainsKey(tagType))
@@ -151,6 +151,19 @@ namespace MetadataExtractor
         }
 
         #endregion
+
+        public void RemoveTag(int tagId)
+        {
+            if (_tagMap.Remove(tagId))
+            {
+                var index = _definedTagList.FindIndex(tag => tag.Type == tagId);
+
+                if (index != -1)
+                {
+                    _definedTagList.RemoveAt(index);
+                }
+            }
+        }
 
         /// <summary>Returns the name of a specified tag as a String.</summary>
         /// <param name="tagType">the tag type identifier</param>

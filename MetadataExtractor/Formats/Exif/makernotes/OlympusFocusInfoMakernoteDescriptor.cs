@@ -81,7 +81,7 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
 
         public string? GetExternalFlashDescription()
         {
-            if (!(Directory.GetObject(OlympusFocusInfoMakernoteDirectory.TagExternalFlash) is ushort[] values) || values.Length < 2)
+            if (Directory.GetObject(OlympusFocusInfoMakernoteDirectory.TagExternalFlash) is not ushort[] values || values.Length < 2)
                 return null;
 
             var join = $"{values[0]} {values[1]}";
@@ -103,7 +103,7 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
         public string? GetExternalFlashZoomDescription()
         {
             var values = Directory.GetObject(OlympusFocusInfoMakernoteDirectory.TagExternalFlashZoom) as ushort[];
-            if (values == null)
+            if (values is null)
             {
                 // check if it's only one value long also
                 if (!Directory.TryGetInt16(OlympusFocusInfoMakernoteDirectory.TagExternalFlashZoom, out short value))
@@ -130,7 +130,7 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
 
         public string? GetManualFlashDescription()
         {
-            if (!(Directory.GetObject(OlympusFocusInfoMakernoteDirectory.TagManualFlash) is short[] values))
+            if (Directory.GetObject(OlympusFocusInfoMakernoteDirectory.TagManualFlash) is not short[] values)
                 return null;
 
             if (values[0] == 0)
@@ -163,7 +163,7 @@ namespace MetadataExtractor.Formats.Exif.Makernotes
         public string? GetImageStabilizationDescription()
         {
             var values = Directory.GetByteArray(OlympusFocusInfoMakernoteDirectory.TagImageStabilization);
-            if (values == null)
+            if (values is null)
                 return null;
 
             if ((values[0] | values[1] | values[2] | values[3]) == 0x0)

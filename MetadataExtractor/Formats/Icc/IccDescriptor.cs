@@ -34,7 +34,7 @@ namespace MetadataExtractor.Formats.Icc
                     return GetProfileDateTimeDescription();
             }
 
-            if (tagType > 0x20202020 && tagType < 0x7a7a7a7a)
+            if (tagType is > 0x20202020 and < 0x7a7a7a7a)
                 return GetTagDataString(tagType);
 
             return base.GetDescription(tagType);
@@ -56,7 +56,7 @@ namespace MetadataExtractor.Formats.Icc
             try
             {
                 var bytes = Directory.GetByteArray(tagType);
-                if (bytes == null)
+                if (bytes is null)
                     return Directory.GetString(tagType);
 
                 var reader = new ByteArrayReader(bytes);
@@ -233,7 +233,7 @@ namespace MetadataExtractor.Formats.Icc
         private string? GetPlatformDescription()
         {
             var str = Directory.GetString(IccDirectory.TagPlatform);
-            if (str == null)
+            if (str is null)
                 return null;
 
             return str switch
@@ -251,7 +251,7 @@ namespace MetadataExtractor.Formats.Icc
         {
             var str = Directory.GetString(IccDirectory.TagProfileClass);
 
-            if (str == null)
+            if (str is null)
                 return null;
 
             return str switch

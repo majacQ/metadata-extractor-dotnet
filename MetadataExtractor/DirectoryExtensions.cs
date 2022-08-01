@@ -219,7 +219,7 @@ namespace MetadataExtractor
 
         #region Int64
 
-        /// <summary>Returns a tag's value as an <see cref="int"/>, or throws if conversion is not possible.</summary>
+        /// <summary>Returns a tag's value as a <see cref="long"/>, or throws if conversion is not possible.</summary>
         /// <remarks>
         /// If the value is <see cref="IConvertible"/>, then that interface is used for conversion of the value.
         /// If the value is an array of <see cref="IConvertible"/> having length one, then the single item is converted.
@@ -249,6 +249,46 @@ namespace MetadataExtractor
                 catch
                 {
                     // ignored
+                }
+            }
+
+            value = default;
+            return false;
+        }
+
+        #endregion
+
+        #region UInt64
+
+        /// <summary>Returns a tag's value as an <see cref="ulong"/>, or throws if conversion is not possible.</summary>
+        /// <remarks>
+        /// If the value is <see cref="IConvertible"/>, then that interface is used for conversion of the value.
+        /// If the value is an array of <see cref="IConvertible"/> having length one, then the single item is converted.
+        /// </remarks>
+        /// <exception cref="MetadataException">No value exists for <paramref name="tagType"/>, or the value is not convertible to the requested type.</exception>
+        [Pure]
+        public static ulong GetUInt64(this Directory directory, int tagType)
+        {
+            if (directory.TryGetUInt64(tagType, out ulong value))
+                return value;
+
+            return ThrowValueNotPossible<ulong>(directory, tagType);
+        }
+
+        [Pure]
+        public static bool TryGetUInt64(this Directory directory, int tagType, out ulong value)
+        {
+            var convertible = GetConvertibleObject(directory, tagType);
+
+            if (convertible != null)
+            {
+                try
+                {
+                    value = convertible.ToUInt64(null);
+                    return true;
+                }
+                catch
+                {
                     // ignored
                 }
             }
@@ -390,7 +430,7 @@ namespace MetadataExtractor
         {
             var o = directory.GetObject(tagType);
 
-            if (o == null)
+            if (o is null)
                 return null;
 
             if (o is string[] strings)
@@ -445,7 +485,7 @@ namespace MetadataExtractor
         {
             var o = directory.GetObject(tagType);
 
-            if (o == null)
+            if (o is null)
                 return null;
             if (o is StringValue[] stringValues)
                 return stringValues;
@@ -463,7 +503,7 @@ namespace MetadataExtractor
         {
             var o = directory.GetObject(tagType);
 
-            if (o == null)
+            if (o is null)
                 return null;
 
             if (o is int[] ints)
@@ -524,7 +564,7 @@ namespace MetadataExtractor
         {
             var o = directory.GetObject(tagType);
 
-            if (o == null)
+            if (o is null)
                 return null;
 
             if (o is StringValue value)
@@ -643,7 +683,7 @@ namespace MetadataExtractor
         {
             var o = directory.GetObject(tagType);
 
-            if (o == null)
+            if (o is null)
             {
                 dateTime = default;
                 return false;
@@ -706,7 +746,7 @@ namespace MetadataExtractor
         {
             var o = directory.GetObject(tagType);
 
-            if (o == null)
+            if (o is null)
             {
                 value = default;
                 return false;
@@ -760,7 +800,7 @@ namespace MetadataExtractor
         {
             var o = directory.GetObject(tagType);
 
-            if (o == null)
+            if (o is null)
                 return null;
 
             if (o is Rational r)
@@ -937,8 +977,7 @@ namespace MetadataExtractor
         public static string? GetString(this Directory directory, int tagType, Encoding encoding)
         {
             var bytes = directory.GetByteArray(tagType);
-            return bytes == null
-                ? null
+            return bytes is null ? null
                 : encoding.GetString(bytes, 0, bytes.Length);
         }
 
@@ -958,13 +997,13 @@ namespace MetadataExtractor
         {
             var o = directory.GetObject(tagType);
 
-            if (o == null)
+            if (o is null)
                 return null;
 
             if (o is IConvertible convertible)
                 return convertible;
 
-            if (o is Array array && array.Length == 1 && array.Rank == 1)
+            if (o is Array { Length: 1, Rank: 1 } array)
                 return array.GetValue(0) as IConvertible;
 
             return null;
@@ -974,7 +1013,7 @@ namespace MetadataExtractor
         {
             var o = directory.GetObject(tagType);
 
-            if (o == null)
+            if (o is null)
                 throw new MetadataException($"No value exists for tag {directory.GetTagName(tagType)}.");
 
             throw new MetadataException($"Tag {tagType} cannot be converted to {typeof(T).Name}. It is of type {o.GetType()} with value: {o}");

@@ -52,7 +52,7 @@ namespace MetadataExtractor.Formats.Photoshop
                 case PhotoshopDirectory.TagClippingPathName:
                     return GetClippingPathNameString(tagType);
                 default:
-                    if (tagType >= PhotoshopDirectory.TagClippingPathBlockStart && tagType <= PhotoshopDirectory.TagClippingPathBlockEnd)
+                    if (tagType is >= PhotoshopDirectory.TagClippingPathBlockStart and <= PhotoshopDirectory.TagClippingPathBlockEnd)
                         return GetPathString(tagType);
                     return base.GetDescription(tagType);
             }
@@ -64,7 +64,7 @@ namespace MetadataExtractor.Formats.Photoshop
             {
                 var b = Directory.GetByteArray(PhotoshopDirectory.TagJpegQuality);
 
-                if (b == null)
+                if (b is null)
                     return Directory.GetString(PhotoshopDirectory.TagJpegQuality);
 
                 var reader = new ByteArrayReader(b);
@@ -73,7 +73,7 @@ namespace MetadataExtractor.Formats.Photoshop
                 int f = reader.GetUInt16(2);
                 int s = reader.GetUInt16(4);
 
-                var q1 = q <= 0xFFFF && q >= 0xFFFD
+                var q1 = q is >= 0xFFFD and <= 0xFFFF
                     ? q - 0xFFFC
                     : q <= 8
                         ? q + 4
@@ -113,7 +113,7 @@ namespace MetadataExtractor.Formats.Photoshop
                     0x0101 => "Progressive",
                     _ => $"Unknown (0x{f:X4})",
                 };
-                var scans = s >= 1 && s <= 3
+                var scans = s is >= 1 and <= 3
                     ? (s + 2).ToString()
                     : $"Unknown (0x{s:X4})";
 
@@ -131,7 +131,7 @@ namespace MetadataExtractor.Formats.Photoshop
             {
                 var bytes = Directory.GetByteArray(PhotoshopDirectory.TagPixelAspectRatio);
 
-                if (bytes == null)
+                if (bytes is null)
                     return null;
 
                 var reader = new ByteArrayReader(bytes);
@@ -150,7 +150,7 @@ namespace MetadataExtractor.Formats.Photoshop
             {
                 var bytes = Directory.GetByteArray(PhotoshopDirectory.TagPrintScale);
 
-                if (bytes == null)
+                if (bytes is null)
                     return null;
 
                 var reader = new ByteArrayReader(bytes);
@@ -179,7 +179,7 @@ namespace MetadataExtractor.Formats.Photoshop
             {
                 var bytes = Directory.GetByteArray(PhotoshopDirectory.TagResolutionInfo);
 
-                if (bytes == null)
+                if (bytes is null)
                     return null;
 
                 var reader = new ByteArrayReader(bytes);
@@ -202,7 +202,7 @@ namespace MetadataExtractor.Formats.Photoshop
             {
                 var bytes = Directory.GetByteArray(PhotoshopDirectory.TagVersion);
 
-                if (bytes == null)
+                if (bytes is null)
                     return null;
 
                 var reader = new ByteArrayReader(bytes);
@@ -235,7 +235,7 @@ namespace MetadataExtractor.Formats.Photoshop
             {
                 var bytes = Directory.GetByteArray(PhotoshopDirectory.TagSlices);
 
-                if (bytes == null)
+                if (bytes is null)
                     return null;
 
                 var reader = new ByteArrayReader(bytes);
@@ -258,7 +258,7 @@ namespace MetadataExtractor.Formats.Photoshop
             {
                 var v = Directory.GetByteArray(tagType);
 
-                if (v == null)
+                if (v is null)
                     return null;
 
                 var reader = new ByteArrayReader(v);
@@ -283,7 +283,7 @@ namespace MetadataExtractor.Formats.Photoshop
         {
             var bytes = Directory.GetByteArray(tag);
 
-            if (bytes == null || bytes.Length == 0)
+            if (bytes is null || bytes.Length == 0)
                 return null;
 
             return bytes[0] == 0 ? "No" : "Yes";
@@ -293,7 +293,7 @@ namespace MetadataExtractor.Formats.Photoshop
         {
             var bytes = Directory.GetByteArray(tag);
 
-            if (bytes == null)
+            if (bytes is null)
                 return null;
 
             var reader = new ByteArrayReader(bytes);
@@ -312,7 +312,7 @@ namespace MetadataExtractor.Formats.Photoshop
         {
             var bytes = Directory.GetByteArray(tagType);
 
-            return bytes == null
+            return bytes is null
                 ? null
                 : Encoding.UTF8.GetString(bytes, 0, bytes.Length);
         }
@@ -321,7 +321,7 @@ namespace MetadataExtractor.Formats.Photoshop
         {
             var bytes = Directory.GetByteArray(tagType);
 
-            return bytes == null
+            return bytes is null
                 ? null
                 : $"{bytes.Length} bytes binary data";
         }
@@ -331,7 +331,7 @@ namespace MetadataExtractor.Formats.Photoshop
             try
             {
                 var bytes = Directory.GetByteArray(tagType);
-                if (bytes == null)
+                if (bytes is null)
                     return null;
                 var reader = new ByteArrayReader(bytes);
                 int length = reader.GetByte(0);
@@ -348,7 +348,7 @@ namespace MetadataExtractor.Formats.Photoshop
             try
             {
                 var bytes = Directory.GetByteArray(tagType);
-                if (bytes == null)
+                if (bytes is null)
                     return null;
                 var reader = new ByteArrayReader(bytes);
                 int length = (int)(reader.Length - reader.GetByte((int)reader.Length - 1) - 1) / 26;

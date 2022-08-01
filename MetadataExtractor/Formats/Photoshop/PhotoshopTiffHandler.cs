@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using MetadataExtractor.Formats.Exif;
 using MetadataExtractor.Formats.Icc;
+using MetadataExtractor.Formats.Tiff;
 using MetadataExtractor.Formats.Xmp;
 using MetadataExtractor.IO;
 
@@ -30,22 +31,22 @@ namespace MetadataExtractor.Formats.Photoshop
         {
         }
 
-        public override bool CustomProcessTag(int tagOffset, ICollection<int> processedIfdOffsets, IndexedReader reader, int tagId, int byteCount)
+        public override bool CustomProcessTag(in TiffReaderContext context, int tagId, int valueOffset, int byteCount)
         {
             switch (tagId)
             {
                 case TagXmp:
-                    Directories.Add(new XmpReader().Extract(reader.GetBytes(tagOffset, byteCount)));
+                    Directories.Add(new XmpReader().Extract(context.Reader.GetBytes(valueOffset, byteCount)));
                     return true;
                 case TagPhotoshopImageResources:
-                    Directories.AddRange(new PhotoshopReader().Extract(new SequentialByteArrayReader(reader.GetBytes(tagOffset, byteCount)), byteCount));
+                    Directories.AddRange(new PhotoshopReader().Extract(new SequentialByteArrayReader(context.Reader.GetBytes(valueOffset, byteCount)), byteCount));
                     return true;
                 case TagIccProfiles:
-                    Directories.Add(new IccReader().Extract(new ByteArrayReader(reader.GetBytes(tagOffset, byteCount))));
+                    Directories.Add(new IccReader().Extract(new ByteArrayReader(context.Reader.GetBytes(valueOffset, byteCount))));
                     return true;
             }
 
-            return base.CustomProcessTag(tagOffset, processedIfdOffsets, reader, tagId, byteCount);
+            return base.CustomProcessTag(context, tagId, valueOffset, byteCount);
         }
     }
 }

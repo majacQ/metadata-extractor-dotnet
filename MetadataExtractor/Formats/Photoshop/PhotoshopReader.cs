@@ -135,7 +135,7 @@ namespace MetadataExtractor.Formats.Photoshop
                         case PhotoshopDirectory.TagExifData1:
                         case PhotoshopDirectory.TagExifData3:
                             var exifDirectories = new ExifReader().Extract(new ByteArrayReader(tagBytes));
-                            foreach (var exifDirectory in exifDirectories.Where(d => d.Parent == null))
+                            foreach (var exifDirectory in exifDirectories.Where(d => d.Parent is null))
                                 exifDirectory.Parent = directory;
                             directories.AddRange(exifDirectories);
                             break;
@@ -145,7 +145,7 @@ namespace MetadataExtractor.Formats.Photoshop
                             directories.Add(xmpDirectory);
                             break;
                         default:
-                            if (tagType >= PhotoshopDirectory.TagClippingPathBlockStart && tagType <= PhotoshopDirectory.TagClippingPathBlockEnd)
+                            if (tagType is >= PhotoshopDirectory.TagClippingPathBlockStart and <= PhotoshopDirectory.TagClippingPathBlockEnd)
                             {
                                 clippingPathCount++;
                                 Array.Resize(ref tagBytes, tagBytes.Length + description.Length + 1);
@@ -165,7 +165,7 @@ namespace MetadataExtractor.Formats.Photoshop
                             break;
                     }
 
-                    if (tagType >= 0x0fa0 && tagType <= 0x1387)
+                    if (tagType is >= 0x0fa0 and <= 0x1387)
                         PhotoshopDirectory.TagNameMap[tagType] = $"Plug-in {tagType - 0x0fa0 + 1} Data";
                 }
                 catch (Exception ex)

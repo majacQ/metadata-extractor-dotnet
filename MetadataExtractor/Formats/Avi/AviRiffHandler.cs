@@ -148,9 +148,14 @@ namespace MetadataExtractor.Formats.Avi
             }
         }
 
+        public void AddError(string errorMessage)
+        {
+            GetOrCreateAviDirectory().AddError(errorMessage);
+        }
+
         private AviDirectory GetOrCreateAviDirectory()
         {
-            if (_directory == null)
+            if (_directory is null)
             {
                 _directory = new AviDirectory();
                 _directories.Add(_directory);
